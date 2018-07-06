@@ -51,7 +51,7 @@ public:
 	string address;
 	int32_t val = 0, pos = -1, offset = 0;
 
-	load(const string &r, const string &a): instruction(), rdest(stoi(r)), address(a) {
+	load(const string &r, const string &a): instruction(), rdest(regist::storeg(r)), address(a) {
 		if (data_label.find(a) != data_label.end()) {
 			pos = data_label[a];
 			return;
@@ -184,7 +184,7 @@ public:
 };
 class mfhi :public Move {
 public:
-	mfhi(const string &r, const string &_r = "hi"):Move(r, _r){}
+	mfhi(const string &r, const string &_r = "$hi"):Move(r, _r){}
 	virtual instruction* copy() { return new mfhi(*this); }
 	virtual void data_preparation() {
 		if (rsrc == -1) return;
@@ -196,7 +196,7 @@ public:
 };
 class mflo :public Move {
 public:
-	mflo(const string &r, const string &_r = "lo") :Move(r, _r) {}
+	mflo(const string &r, const string &_r = "$lo") :Move(r, _r) {}
 	virtual instruction* copy() { return new mflo(*this); }
 	virtual void data_preparation() {
 		if (rsrc == -1) return;

@@ -66,7 +66,7 @@ text_block = (tmp == "text");
 else if (str.back() == ':') {
 string tmp = get_phrase(str, i);
 if (text_block) text_label[tmp] = ins_cnt;
-else data_label[tmp] = _memory.heap_top;
+else [tmp] = _memory.heap_top;
 }
 else {//text's instruction
 try {

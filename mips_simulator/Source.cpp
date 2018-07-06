@@ -12,8 +12,8 @@ void translate(string &name, string &r1, string &r2, string &r3, istream &sysin,
 
 	if (name == "la")	   p = new la(r1, r2);
 	else if (name == "lb") p = new lb(r1, r2);
-	else if (name == "lh") p = new lb(r1, r2);
-	else if (name == "lw") p = new lb(r1, r2);
+	else if (name == "lh") p = new lh(r1, r2);
+	else if (name == "lw") p = new lw(r1, r2);
 
 	else if (name == "sb") p = new sb(r1, r2);
 	else if (name == "sh") p = new sh(r1, r2);
@@ -52,17 +52,18 @@ void translate(string &name, string &r1, string &r2, string &r3, istream &sysin,
 	else if (name == "b" || name == "jr" || name == "j")p = new b_jump(r1, 0);
 	else if (name == "jalr" || name == "jal")			p = new b_jump(r1, 1);
 	else if (name == "beq")		p = new beq(r1, r2, r3);
-	else if (name == "beqz")	p = new beq(r1, 0, r3);
+
+	else if (name == "beqz")	p = new beq(r1, "", r2);
 	else if (name == "bne")		p = new beq(r1, r2, r3);
-	else if (name == "bnez")	p = new beq(r1, 0, r3);
+	else if (name == "bnez")	p = new beq(r1, "", r2);
 	else if (name == "bge")		p = new bge(r1, r2, r3);
-	else if (name == "bgez")	p = new bge(r1, 0, r3);
+	else if (name == "bgez")	p = new bge(r1, "", r2);
 	else if (name == "ble")		p = new ble(r1, r2, r3);
-	else if (name == "blez")	p = new ble(r1, 0, r3);
+	else if (name == "blez")	p = new ble(r1, "", r2);
 	else if (name == "bgt")		p = new bgt(r1, r2, r3);
-	else if (name == "bgtz")	p = new bgt(r1, 0, r3);
+	else if (name == "bgtz")	p = new bgt(r1, "", r2);
 	else if (name == "blt")		p = new blt(r1, r2, r3);
-	else if (name == "bltz")	p = new blt(r1, 0, r3);
+	else if (name == "bltz")	p = new blt(r1, "", r2);
 	_instruction.push_back(p);
 }
 
@@ -71,21 +72,23 @@ void translate(string &name, string &r1, string &r2, string &r3, istream &sysin,
 void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 	string str;// instruction sentences
 	int ins_cnt = 0;
-	//vector<string> _name, _r1, _r2, _r3;
+	vector<string> _name, _r1, _r2, _r3;
 	bool text_block = 0;
 
 	//if r2, r3 not exist --> it is ""
 
 	while (getline(fin, str)) {
+		//cout << str << '\n';
+		str += " ";// getline can't get a '\0' or '\n' or ' ', so add it specially
 		string tmp;
 		int i = 0;
 		while (str[i] == ' ' || str[i] == '\t') ++i;
-
 		if (str[i] == '.') {// "." order
 			++i;
 			tmp = get_phrase(str, i);
 			if (tmp == "align") {
 				++i;
+
 				int n = stoi(get_phrase(str, i));
 				n = pow_2(n);
 				_memory.heap_top += (n - _memory.heap_top % n);// again % n;
@@ -124,30 +127,26 @@ void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 				text_block = (tmp == "text");
 			}
 		}
-		else if (str.back() == ':') {
+		else if (*(&str.back() - 2) == ':' || *(&str.back() - 1) == ':') {
 			string tmp = get_phrase(str, i);
+			tmp.pop_back();
 			if (text_block) text_label[tmp] = ins_cnt;
 			else data_label[tmp] = _memory.heap_top;
 		}
 		else {//text's instruction
-			int ccc = ins_cnt;
-			string name, r1, r2, r3;
-			try {
-				name = get_phrase(str, i);	++i;
-				++ins_cnt;
-				r1 = get_phrase(str, i);	++i;// attention has $
-				r2 = get_phrase(str, i);	++i;
-				r3 = get_phrase(str, i);	++i;
-			}
-			catch (...) {
-				if(ccc == ins_cnt) continue;
-
-				translate(name, r1, r2, r3, sysin, sysout);
-			}
+			string tmp = get_phrase(str, i);	++i;
+			if (tmp == "") continue;
+			else _name.push_back(tmp);
+			++ins_cnt;
+			_r1.push_back(get_phrase(str, i));	++i;// attention has $
+			_r2.push_back(get_phrase(str, i));	++i;
+			_r3.push_back(get_phrase(str, i));	++i;
 		}
 	}
 
-	
+	for (int i = 0; i < ins_cnt; ++i) {
+		translate(_name[i], _r1[i], _r2[i], _r3[i], sysin, sysout);
+	}
 }
 
 void execute_pipeline() {
@@ -206,20 +205,20 @@ void execute_simple() {
 	int ins_vec_sz = _instruction.size();
 	int cnt = 0;
 	while (_memory.text_top < ins_vec_sz) {
-		//cout << "\nins: " << _memory.text_top << endl;
-		instruction *ptr = _instruction[_memory.text_top++]->copy();
-		ptr->data_preparation();
-		ptr->execute();
-		ptr->memory_access();
-		ptr->write_back();
-		delete ptr;
-		/*
+		cout << "\nins: " << _memory.text_top << endl;
+		instruction *p = _instruction[_memory.text_top++]->copy();
+		p->data_preparation();
+		p->execute();
+		p->memory_access();
+		p->write_back();
+		delete p;
+		
 		for (int i = 0; i < 16; ++i)
-		file << setw(5) << reg[i] << " ";
+		cout << _regist.reg[i] << " ";
 		for (int i = 32; i < 34; ++i)
-		file << reg[i] << " ";
-		file << endl;
-		*/
+		cout << _regist.reg[i] << " ";
+		cout << endl;
+		
 	}
 }
 

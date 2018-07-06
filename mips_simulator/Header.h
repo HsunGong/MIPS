@@ -100,7 +100,6 @@ int pow_2(int n) {
 string get_phrase(const string &str, int &tail) {
 	int head = tail;
 	tail = str.find(' ', tail);
-	if (tail == string::npos) throw not_exist();
 	return str.substr(head, tail - head);
 }
 

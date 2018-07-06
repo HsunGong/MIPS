@@ -85,7 +85,7 @@ public:
 
 	}
 	~regist(){}
-	static int32_t storeg(string s) noexcept{
+	static int32_t storeg(string s){
 		if (s.empty()) return -1;
 		if (s.back() == ',') s.pop_back();
 		for (int32_t i = 0; i < 34; ++i) if (s == REG_STR[i] || s == REG_NUM[i]) return i;
