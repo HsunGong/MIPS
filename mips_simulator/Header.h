@@ -88,22 +88,16 @@ using namespace std;
 map<string, int> text_label, data_label;
 
 
-int power_2(int n) {
+int pow_2(int n) {
 	int res = 1;
 	while (n--) res <<= 1;
-	return res;
-}
-
-string get_phrase(char *str, int &i, int l) {
-	string res = "";
-	while (i < l && str[i] != ' ') res += str[i++];
 	return res;
 }
 
 // ".axx s"
 //  012345
 // pos = 1, end = 4
-string get_phrase(string &str, int &tail) {
+string get_phrase(const string &str, int &tail) {
 	int head = tail;
 	tail = str.find(' ', tail);
 	if (tail == string::npos) throw not_exist();
@@ -111,31 +105,30 @@ string get_phrase(string &str, int &tail) {
 }
 
 
+string to_str(string &s, int &i) {
+	string res;
+	++i;//s[i]== '\"'
 
-
-
-
-string get_str(char *str, int &i, int l) {
-	string res = "";
-	while (i < l) {
-		res += str[i++];
+	while (i < s.length()) {//s[s.length()] == '\"'
+		res += s[i++];
 		if (res.back() == '\\') {
-			char ch = str[i++], real;
+			char ch = s[i++];
+			char transfer;
 			switch (ch) {
-			case 'n': real = '\n'; break;
-			case 'r': real = '\r'; break;
-			case 't': real = '\t'; break;
-			case '\\': real = '\\'; break;
-			case '\'': real = '\''; break;
-			case '\"': real = '\"'; break;
-			case '0': real = '\0'; break;
+			case 'n': transfer = '\n'; break;
+			case 'r': transfer = '\r'; break;
+			case 't': transfer = '\t'; break;
+			case '\\': transfer = '\\'; break;
+			case '\'': transfer = '\''; break;
+			case '\"': transfer = '\"'; break;
+			case '0': transfer = '\0'; break;
 			}
-			res.back() = real;
+			res.back() = transfer;// change back from '\\' into '\n' or ....
 		}
 	}
+
 	return res;
 }
-
 
 
 #define maxc 1000

@@ -3,34 +3,32 @@
 #include "Header.h"
 #include "storage.hpp"
 
-map<string, int> text_label, data_label;
-
-enum instr_type {
-	ADD, ADDU, ADDIU,
-	SUB, SUBU,
-	MUL, MULU,
-	MUL, MULU,
-	DIV, DIVU,
-	DIV, DIVU,
-	XOR, XORU,
-	NEG, NEGU,
-	REM, REMU,
-	LI, 
-	SEG, SGE,
-	SGT, SLE,
-	SLT, SNE,
-	B, BEQ, BNE,
-	BGE, BLE,
-	BGT, BLT,
-	BEQZ, BNEZ,
-	BLEZ, BGEZ,
-	BGTZ, BLTZ,
-	J, JR, JAL, JALR,
-	LA, LB, LH, LW,
-	SB, SH, SW,
-	MOVE, MFHI, MFLO,
-	NOP, SYSCALL
-};
+//enum instr_type {
+//	ADD, ADDU, ADDIU,
+//	SUB, SUBU,
+//	MUL, MULU,
+//	MUL, MULU,
+//	DIV, DIVU,
+//	DIV, DIVU,
+//	XOR, XORU,
+//	NEG, NEGU,
+//	REM, REMU,
+//	LI, 
+//	SEG, SGE,
+//	SGT, SLE,
+//	SLT, SNE,
+//	B, BEQ, BNE,
+//	BGE, BLE,
+//	BGT, BLT,
+//	BEQZ, BNEZ,
+//	BLEZ, BGEZ,
+//	BGTZ, BLTZ,
+//	J, JR, JAL, JALR,
+//	LA, LB, LH, LW,
+//	SB, SH, SW,
+//	MOVE, MFHI, MFLO,
+//	NOP, SYSCALL
+//};
 
 class instruction {//include nop instruction
 public:
@@ -540,14 +538,15 @@ public:
 		}
 	}
 	virtual void memory_access() {
+		int i;
 		switch (type) {
 		case 4:
-			int i = v0;
+			i = v0;
 			while (_memory.mem[i]) out << _memory.mem[i++];
 			break;
 		case 8:
 			int l = str.length();
-			int i = 0;
+			i = 0;
 			while (i < l) _memory.mem[v0 + i] = str[i++];
 			break;
 		}

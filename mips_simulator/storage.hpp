@@ -22,30 +22,30 @@ public:
 public:
 	memory(){}
 	~memory(){}
-	int store_text(int size) {
-		int tmp = text;
-		text += size;
-		return tmp;
-	}
-	int store_data(int type, int size) {
-		int tmp;
-		switch (type) {
-		case 1:
-			tmp = data;
-			data += size;
-			heap = data;
-			return tmp;
-		case 2:
-			tmp = heap;
-			heap += size;
-			if (heap > stack) throw _exception();
-			return tmp;
-		case 3:
-			stack -= size;
-			if (heap > stack) throw _exception();
-			return stack;
-		}
-	}
+	//int store_text(int size) {
+	//	int tmp = text;
+	//	text += size;
+	//	return tmp;
+	//}
+	//int store_data(int type, int size) {
+	//	int tmp;
+	//	switch (type) {
+	//	case 1:
+	//		tmp = data;
+	//		data += size;
+	//		heap = data;
+	//		return tmp;
+	//	case 2:
+	//		tmp = heap;
+	//		heap += size;
+	//		if (heap > stack) throw _exception();
+	//		return tmp;
+	//	case 3:
+	//		stack -= size;
+	//		if (heap > stack) throw _exception();
+	//		return stack;
+	//	}
+	//}
 }_memory;
 int MEM_LOW;
 
