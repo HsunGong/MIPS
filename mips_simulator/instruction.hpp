@@ -5,7 +5,6 @@
 
 map<string, int> text_label, data_label;
 
-
 enum instr_type {
 	ADD, ADDU, ADDIU,
 	SUB, SUBU,
@@ -167,13 +166,16 @@ public:
 //		_regist.reg[rdest] = imm;
 //	}
 //};
-class move : public instruction {
+
+
+//attention contain "li" order
+class Move : public instruction {
 public:
 	int rdest, rsrc, imm;
-	move(const string &r, const string &_r) :rdest(regist::storeg(r)), rsrc(regist::storeg(_r)) {
+	Move(const string &r, const string &_r) :rdest(regist::storeg(r)), rsrc(regist::storeg(_r)) {
 		if (rsrc == -1) imm = stoi(_r);
 	}
-	virtual instruction* copy() { return new move(*this); }
+	virtual instruction* copy() { return new Move(*this); }
 	virtual void data_preparation() {
 		if (rsrc == -1) return;
 		imm = _regist.reg[rsrc];
@@ -182,9 +184,9 @@ public:
 		_regist.reg[rdest] = imm;
 	}
 };
-class mfhi :public move {
+class mfhi :public Move {
 public:
-	mfhi(const string &r, const string &_r = "hi"):move(r, _r){}
+	mfhi(const string &r, const string &_r = "hi"):Move(r, _r){}
 	virtual instruction* copy() { return new mfhi(*this); }
 	virtual void data_preparation() {
 		if (rsrc == -1) return;
@@ -194,9 +196,9 @@ public:
 		_regist.reg[rdest] = imm;
 	}
 };
-class mflo :public move {
+class mflo :public Move {
 public:
-	mflo(const string &r, const string &_r = "lo") :move(r, _r) {}
+	mflo(const string &r, const string &_r = "lo") :Move(r, _r) {}
 	virtual instruction* copy() { return new mflo(*this); }
 	virtual void data_preparation() {
 		if (rsrc == -1) return;
@@ -273,16 +275,16 @@ public:
 	}
 };
 
-class div : public calculation {
+class Div : public calculation {
 public:
 	bool sign; // signed int --> sign = 1
 	int32_t size;
 	int32_t quotient, remainder;
-	div(const string &r, const string &_r1, const string &_r2, bool s) :
+	Div(const string &r, const string &_r1, const string &_r2, bool s) :
 		calculation(r, _r1, _r2), sign(s) {
 		size = (_r2 == "") ? 2 : 3;
 	}
-	virtual instruction* copy() { return new div(*this); }
+	virtual instruction* copy() { return new Div(*this); }
 	virtual void data_prepare() {
 		if (size == 2) {
 			imm2 = imm1;
@@ -354,18 +356,19 @@ public:
 		calculation(r, _r1, _r2), sign(s) {}
 	virtual instruction* copy() { return new neg(*this); }
 	virtual void execute() {
-		if (sign) result = ~imm1;
+		if (sign) result = -imm1;
 		else result = ~(uint32_t)(imm1);
 	}
 };
 
 class comparation : public instruction {
 public:
+	enum cmp_type{seq, sge, sgt, sle, slt, sne};
 	int rdest, rsrc1, rsrc2;
 	int imm1, imm2;
 	bool cmp;
-	int type;
-	comparation(const string &r, const string &_r1, const string &_r2, const int t) :instruction(),
+	cmp_type type;
+	comparation(const string &r, const string &_r1, const string &_r2, const cmp_type t) :instruction(),
 		rdest(regist::storeg(r)), rsrc1(regist::storeg(_r1)), rsrc2(regist::storeg(_r2)) , type(t){
 		if (rsrc1 == -1) imm1 = stoi(_r1);
 		if (rsrc2 == -1) imm2 = stoi(_r2);
@@ -380,48 +383,25 @@ public:
 	}
 	virtual void execute() {
 		switch (type) {
-		case 1://seq
+		case seq://seq
 			cmp = (imm1 == imm2);
 			break;	
-		case 2://sge
+		case sge://sge
 			cmp = (imm1 >= imm2);
 			break;
-		case 3://sgt
+		case sgt://sgt
 			cmp = (imm1 > imm2);
 			break;
-		case 4://sle
+		case sle://sle
 			cmp = (imm1 <= imm2);
 			break;
-		case 5://slt
+		case slt://slt
 			cmp = (imm1 <imm2);
 			break;
-		case 6://sne
+		case sne://sne
 			cmp = (imm1 != imm2);
 			break;
 		}
-	}
-};
-
-
-int ins_top, heap_top;
-class branch : public instruction {
-public:
-	int rsrc1, rsrc2;
-	int imm1, imm2;
-	int pos;
-	int flag;
-
-	branch(const string &_r1, const string &_r2, const string &label):instruction(),
-		rsrc1(regist::storeg(_r1)), rsrc2(regist::storeg(_r2)), pos(text_label[label])
-	{}
-	virtual instruction* copy() { return new branch(*this); }
-	virtual void data_preparation() {
-		if (rsrc1 != -1) imm1 = _regist.reg[rsrc1];
-		if (rsrc2 != -1) imm2 = _regist.reg[rsrc2];
-		else imm2 = 0;//? does it work?
-	}
-	virtual void write_back() {
-		if (flag) ins_top = pos;
 	}
 };
 
@@ -429,6 +409,7 @@ class b_jump : public instruction {
 public:
 	int rsrc = -1;
 	int pos = -1;
+
 	//b, j, jr ==> type == 0
 	//jal, jalr ==> type == 1 ==> writeback next order in $31
 	bool type;
@@ -448,9 +429,30 @@ public:
 		if (rsrc != -1) pos = _regist.reg[rsrc];
 	}
 	virtual void write_back() {
-		if (type) _regist.reg[31] = ins_top;
-		ins_top = pos;
+		if (type) _regist.reg[31] = _memory.text_top;
+		_memory.text_top = pos;
 
+	}
+};
+
+class branch : public instruction {
+public:
+	int rsrc1, rsrc2;
+	int imm1, imm2;
+	int pos;
+	int flag;
+
+	branch(const string &_r1, const string &_r2, const string &label):instruction(),
+		rsrc1(regist::storeg(_r1)), rsrc2(regist::storeg(_r2)), pos(text_label[label])
+	{}
+	virtual instruction* copy() { return new branch(*this); }
+	virtual void data_preparation() {
+		if (rsrc1 != -1) imm1 = _regist.reg[rsrc1];
+		if (rsrc2 != -1) imm2 = _regist.reg[rsrc2];
+		else imm2 = 0;//? does it work?
+	}
+	virtual void write_back() {
+		if (flag)  _memory.text_top = pos;
 	}
 };
 
@@ -546,7 +548,7 @@ public:
 		case 8:
 			int l = str.length();
 			int i = 0;
-			while (i < l) mem[v0 + i] = str[i++];
+			while (i < l) _memory.mem[v0 + i] = str[i++];
 			break;
 		}
 	}
@@ -556,36 +558,12 @@ public:
 			_regist.reg[2] = result;
 			break;
 		case 9:
-			_regist.reg[2] = heap_top;
-			heap_top += v0;
+			_regist.reg[2] = _memory.heap_top;
+			_memory.heap_top += v0;
 			break;
 		}
 	}
 };
-
-vector<instruction*> _instruction;
-
-
-
-
-//interprete
-void fetch(fstream &fin) {
-	string str;// instruction sentences
-	int ins_cnt = 0;
-	vector<string> _name, _r1, _r2, _r3;
-	bool text_block = 0;
-
-
-	while (getline(fin, str)) {
-		string tmp;
-		int i = 0, l = str.length();
-	}
-
-}
-
-void execute_text() {
-
-}
 
 
 

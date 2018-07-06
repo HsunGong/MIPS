@@ -15,6 +15,10 @@ enum order_type {
 	text
 };
 
+//way2--> order_map<string, order_type>
+
+
+
 class order {
 protected:
 	order_type type;
@@ -24,7 +28,8 @@ protected:
 	virtual ~order(){}
 };
 
-class align :public order {
+class align : public order {
+public:
 	uint32_t x;
 	align(order_type &t, int32_t &p, uint32_t &n): order(t, p), x(x){}
 	virtual void execute() {
@@ -105,7 +110,7 @@ class text :public order {
 	virtual ~text() {}
 };
 
-
+vector<string> codes;
 
 
 

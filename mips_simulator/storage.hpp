@@ -7,21 +7,18 @@
 using int32_t = __int32;
 
 const int reg_size = 34;
-const int memsize = 4 * 1024 * 1024;
+const int memsize = 4 * 1024 * 1024 - 400000;
 
 //storage of memory and register
 
 //memory
 
 class memory {
-public:
-	int top = memsize;
-	int head = 400000;
-	int text = head;
-	int data = 1000000;
-	int heap = data;
-	int stack = memsize;
+public:	
 	char mem[memsize];
+
+	int heap_top = 0;//cur, not maxmimum
+	int text_top = 0;//cur, not maximum
 public:
 	memory(){}
 	~memory(){}
@@ -50,6 +47,7 @@ public:
 		}
 	}
 }_memory;
+int MEM_LOW;
 
 
 
@@ -81,7 +79,7 @@ public:
 		reg_name["lo"] = 33,
 		reg_name["pc"] = 34;
 
-		reg[29] = memsize;
+		reg[29] = memsize - 1;
 
 
 
@@ -102,6 +100,6 @@ int mem_low = 0, pc, SIMULATOR_RET = 0;
 
 map<string, int> label;//only one label accessable
 
-
+vector<string> code;
 
 
