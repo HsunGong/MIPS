@@ -17,7 +17,7 @@
 using namespace std;
 
 //std::to_string(xx);
-//std::stoi(), stol(), stoll();
+//std::mstoi(), stol(), stoll();
 
 
 
@@ -133,7 +133,10 @@ string to_str(string &s, int &i) {
 #define maxc 1000
 
 
-
+int mstoi(string r) {
+	if (r.empty()) return 0;
+	else return stoi(r);
+}
 
 
 

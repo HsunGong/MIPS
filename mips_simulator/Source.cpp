@@ -21,8 +21,8 @@ void translate(string &name, string &r1, string &r2, string &r3, istream &sysin,
 
 	else if (name == "li")   p = new Move(r1, r2);
 	else if (name == "move") p = new Move(r1, r2);
-	else if (name == "mfhi") p = new mfhi(r1);
-	else if (name == "mflo") p = new mflo(r1);
+	else if (name == "mfhi") p = new Move(r1, "$hi");
+	else if (name == "mflo") p = new Move(r1, "$lo");
 
 	else if (name == "add") p = new add(r1, r2, r3, 1);
 	else if (name == "addu" || name == "addiu") p = new add(r1, r2, r3, 0);
@@ -89,7 +89,7 @@ void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 			if (tmp == "align") {
 				++i;
 
-				int n = stoi(get_phrase(str, i));
+				int n = mstoi(get_phrase(str, i));
 				n = pow_2(n);
 				_memory.heap_top += (n - _memory.heap_top % n);// again % n;
 			}
@@ -107,7 +107,7 @@ void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 					//if (i == str.length()) break;				
 					try {
 						++i;
-						int n = stoi(get_phrase(str, i));
+						int n = mstoi(get_phrase(str, i));
 						memcpy(_memory.mem + _memory.heap_top, &n, m);
 						_memory.heap_top += m;
 					}
@@ -120,7 +120,7 @@ void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 			}
 			else if (tmp == "space") {
 				++i;
-				int n = stoi(get_phrase(str, i));
+				int n = mstoi(get_phrase(str, i));
 				_memory.heap_top += n;
 			}
 			else if (tmp == "data" || tmp == "text") {
@@ -130,12 +130,18 @@ void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
 		else if (*(&str.back() - 2) == ':' || *(&str.back() - 1) == ':') {
 			string tmp = get_phrase(str, i);
 			tmp.pop_back();
-			if (text_block) text_label[tmp] = ins_cnt;
-			else data_label[tmp] = _memory.heap_top;
+			if (text_block) {
+				text_label[tmp] = ins_cnt;
+				//cout << tmp << "\tcur:\t"<<ins_cnt<<'\n';
+			}
+			else {
+				data_label[tmp] = _memory.heap_top;
+				//cout << tmp << "\tcur:\t" << _memory.heap_top << '\n';
+			}
 		}
 		else {//text's instruction
 			string tmp = get_phrase(str, i);	++i;
-			if (tmp == "") continue;
+			if (tmp == "" || tmp == " ") continue;
 			else _name.push_back(tmp);
 			++ins_cnt;
 			_r1.push_back(get_phrase(str, i));	++i;// attention has $
@@ -205,19 +211,21 @@ void execute_simple() {
 	int ins_vec_sz = _instruction.size();
 	int cnt = 0;
 	while (_memory.text_top < ins_vec_sz) {
-		cout << "\nins: " << _memory.text_top << endl;
+		//cout << "\nnum: " << ++cnt << "\tins: " << _memory.text_top << endl;
 		instruction *p = _instruction[_memory.text_top++]->copy();
+		
+		//p->order();
+
+
 		p->data_preparation();
 		p->execute();
 		p->memory_access();
 		p->write_back();
 		delete p;
 		
-		for (int i = 0; i < 16; ++i)
+		/*for (int i = 0; i < 34; ++i)
 		cout << _regist.reg[i] << " ";
-		for (int i = 32; i < 34; ++i)
-		cout << _regist.reg[i] << " ";
-		cout << endl;
+		cout << endl;*/
 		
 	}
 }
@@ -256,8 +264,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef DEBUG	
-for (int i = 1; i <= 60; ++i) {
-	char num = '0' + i;
+	char num = '1';
 	string name = "../test/data/"; // or string name =  "..\\test\\data\\";
 	name += num;
 
@@ -279,8 +286,6 @@ for (int i = 1; i <= 60; ++i) {
 	main_fin.close();
 	testin.close();
 
-	cin >> name;
-}
 #endif
 
 

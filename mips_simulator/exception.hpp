@@ -32,7 +32,7 @@ tmp = get_phrase(str, i);
 if (tmp == "align") {
 ++i;
 tmp = get_phrase(str, i);
-int n = stoi(tmp);
+int n = mstoi(tmp);
 n = pow(n, 2);
 _memory.heap_top += (n - _memory.heap_top % n) % n;
 }
@@ -49,14 +49,14 @@ while (1) {
 if (i == l) break;
 ++i;
 tmp = get_phrase(str, i);
-int n = stoi(tmp);
+int n = mstoi(tmp);
 memcpy(_memory.mem + _memory.heap_top, &n, m);
 }
 }
 else if (tmp == "space") {
 ++i;
 tmp = get_phrase(str, i);
-int n = stoi(tmp);
+int n = mstoi(tmp);
 _memory.heap_top += n;
 }
 else if (tmp == "data" || tmp == "text") {
