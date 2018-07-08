@@ -59,7 +59,7 @@ public:
 	map<string, size_t> reg_name;
 
 public:
-	int32_t reg[34] = { 0 };//4 bytes
+	int32_t reg[35] = { 0 };//4 bytes
 	bool vis[34] = { 0 };//deal the hazard
 public:
 	regist() {

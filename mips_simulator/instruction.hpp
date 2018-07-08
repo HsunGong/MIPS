@@ -77,25 +77,25 @@ class la : public load {
 public:
 	la(const string &r, const string &a) : load(r,a, 2) {}
 	virtual instruction* copy() { return new la(*this); }
-	virtual void memory_access() { memcpy(&val, _memory.mem + pos, 0); }
+	virtual void memory_access() {  }
 };
 class lb : public load {
 public:
 	lb(const string &r, const string &a) :load(r, a, 3) {}
 	virtual instruction* copy() { return new lb(*this); }
-	virtual void memory_access() { memcpy(&val, _memory.mem + pos, 1); }
+	virtual void memory_access() { new(_memory.mem + pos) char(val); }
 };
 class lh : public load {
 public:
 	lh(const string &r, const string &a) :load(r, a, 4) {}
 	virtual instruction* copy() { return new lh(*this); }
-	virtual void memory_access() { memcpy(&val, _memory.mem + pos, 2); }
+	virtual void memory_access() { new(_memory.mem + pos) int16_t(val); }
 };
 class lw : public load {
 public:
 	lw(const string &r, const string &a) :load(r, a, 5) {}
 	virtual instruction* copy() { return new lw(*this); }
-	virtual void memory_access() { memcpy(&val, _memory.mem + pos, 4); }
+	virtual void memory_access() { new(_memory.mem + pos) int32_t(val); }
 };
 
 
@@ -487,8 +487,8 @@ class syscall : public instruction {
 public:
 	istream &in;
 	ostream &out;
-	int type, v0, v1, result;
-	string str;
+	int type, a0, a1, result;
+	char str[maxc];
 
 	syscall(istream &_in, ostream &_out):instruction(31), in(_in), out(_out){}
 	virtual instruction *copy() { return new syscall(*this); }
@@ -496,29 +496,28 @@ public:
 		type = _regist.reg[2];// $v0
 		switch (type) {
 		case 1: case 4: case 9: case 17:
-			v0 = _regist.reg[4];//$a0
-			break;
+			a0 = _regist.reg[4];//$a0
 		case 8:
-			v1 = _regist.reg[5];//$a1
+			a1 = _regist.reg[5];//$a1
 			break;
 		}
 	}
 	virtual void execute() {
 		switch (type) {
 		case 1:
-			out << v0;
+			out << a0;
 			break;
 		case 5:
 			in >> result;
 			break;
 		case 8:
-			getline(in, str);
+			in.getline(str, a1, '\0');
 			break;
 		case 10:
 			exit(0);
 			break;
 		case 17:
-			exit(v0);
+			exit(a0);
 			break;
 		}
 	}
@@ -526,13 +525,13 @@ public:
 		int i;
 		switch (type) {
 		case 4:
-			i = v0;
+			i = a0;
 			while (_memory.mem[i]) out << _memory.mem[i++];
 			break;
 		case 8:
-			int l = str.length();
+			int l = strlen(str);
 			i = 0;
-			while (i < l) _memory.mem[v0 + i] = str[i++];
+			while (i < l) _memory.mem[a0 + i] = str[i++];
 			break;
 		}
 	}
@@ -543,7 +542,7 @@ public:
 			break;
 		case 9:
 			_regist.reg[2] = _memory.heap_top;
-			_memory.heap_top += v0;
+			_memory.heap_top += a0;
 			break;
 		}
 	}
