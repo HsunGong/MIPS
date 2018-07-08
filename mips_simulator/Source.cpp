@@ -1,293 +1,470 @@
-#define DEBUG
-//#define RELEASE
-
-
 #include "Header.h"
 #include "instruction.hpp"
+#include "storage.hpp"
 
-vector<instruction*> _instruction;
 
-void translate(string &name, string &r1, string &r2, string &r3, istream &sysin, ostream &sysout) {
-	instruction *p;
 
-	if (name == "la")	   p = new la(r1, r2);
-	else if (name == "lb") p = new lb(r1, r2);
-	else if (name == "lh") p = new lh(r1, r2);
-	else if (name == "lw") p = new lw(r1, r2);
+void manageString(string &line, int &loc, int len) {
+	if (line[loc] == '.') {
+		int next = loc, k, cmp, multime = 1;
+		for (; line[next] != ' ' && line[next] != '\t' && line[next] != '\n'; ++next);
+		string key(&line[loc + 1], &line[next]), str;
 
-	else if (name == "sb") p = new sb(r1, r2);
-	else if (name == "sh") p = new sh(r1, r2);
-	else if (name == "sw") p = new sw(r1, r2);
+		switch (key[3]) {// '.' order
+		case('g')://align
+			k = mstoi(line, loc);
+			cmp = 2 << (k - 1);
+			//while (_ram.mem_low > cmp) {
+			//	cmp += 2 << (k - 1);
+			//	++multime;
+			//}
+			for (; _ram.mem_low > cmp; cmp += (2 << (k - 1)), ++multime);
+			_ram.mem_low = cmp;
+			break;
+		case('i')://ascii/asciiz
+			//while (skip(line[next])) ++next;
+			//loc = next;// has sth
+			//++next;//next is (left)'\"'
+			//while (line[next] != '\"') ++next;//right "
+			for (; line[next] == ' ' || line[next] == '\t'; ++next); loc = next;
+			for (++next; line[next] != '\"'; ++next);
 
-	else if (name == "li")   p = new Move(r1, r2);
-	else if (name == "move") p = new Move(r1, r2);
-	else if (name == "mfhi") p = new Move(r1, "$hi");
-	else if (name == "mflo") p = new Move(r1, "$lo");
+			str = string(&line[loc + 1], &line[next]);
+			_ram.saveString(str, _ram.mem_low);
+			if (key.length() == 6) _ram.memory[_ram.mem_low++] = '\0';
+			break;
+		case('e')://byte
+			do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 1);}//whether it is oko?
+			while (line[loc++] == ',');///???????? is it work>>
+			break;
+		case('f')://half
+			//do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 2);} 
+			//while (line[loc++] == ',');
+			for (_ram.saveInt(mstoi(line, loc), _ram.mem_low, 2); line[loc] == ','; _ram.saveInt(mstoi(line, ++loc), _ram.mem_low, 1));
 
-	else if (name == "add") p = new add(r1, r2, r3, 1);
-	else if (name == "addu" || name == "addiu") p = new add(r1, r2, r3, 0);
-	else if (name == "sub")  p = new sub(r1, r2, r3, 1);
-	else if (name == "subu") p = new sub(r1, r2, r3, 0);
-	else if (name == "mul")  p = new mul(r1, r2, r3, 1);
-	else if (name == "mulu") p = new mul(r1, r2, r3, 0);
-	else if (name == "div")  p = new Div(r1, r2, r3, 1);
-	else if (name == "divu") p = new Div(r1, r2, r3, 0);
-	else if (name == "xor")  p = new Xor(r1, r2, r3, 1);
-	else if (name == "xoru") p = new Xor(r1, r2, r3, 0);
-	else if (name == "neg")  p = new neg(r1, r2, r3, 1);
-	else if (name == "negu") p = new neg(r1, r2, r3, 0);
-	else if (name == "rem")  p = new rem(r1, r2, r3, 1);
-	else if (name == "remu") p = new rem(r1, r2, r3, 0);
+			break;
+		case('d')://word
+			//do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 4);}
+			//while (line[loc++] == ',');
+			for (_ram.saveInt(mstoi(line, loc), _ram.mem_low, 4); line[loc] == ','; _ram.saveInt(mstoi(line, ++loc), _ram.mem_low, 1));
 
-	else if (name == "nop")	p = new instruction();
-	else if (name == "syscall")	p = new syscall(sysin, sysout);
+			break;
+		case('c')://space
+			_ram.mem_low += mstoi(line, loc);
+			break;
+		default://data---text
+			return;
+		}
+	}
+	else {//instructions
+		int nxt = loc;
+		for (; line[nxt] != ' ' && line[nxt] != '\t' && line[nxt] != '\n'; ++nxt);
+		string operatorname(&line[loc], &line[nxt]);
+		loc = nxt;
+		////First_scanf:
+		//ADD, ADDU, ADDIU, SUB, SUBU, XOR, XORU, REM, REMU, SEQ, SGE, SGT, SLE, SLT, SNE, // Rd R1 R2/Imm
+		//	NEG, NEGU, LI, MOVE, //Rd R1/Imm
+		//	MFHI, MFLO, //Rd
+		//	JR, JALR, //R1
+		//	NOP, SYSCALL,
+		//	MUL, MULU, DIV, DIVU, //R1 R2/Imm
+		//						  //Second_scanf:
+		//	B, J, JAL, //Label 
+		//	BEQ, BNE, BGE, BLE, BGT, BLT, //R1 R2/Imm Label 
+		//	BEQZ, BNEZ, BLEZ, BGEZ, BGTZ, BLTZ, //R1 Label 
+		//	LA, LB, LH, LW, //Rd Address (Del) R1 -> Rd
+		//	SB, SH, SW //R1 Address (Del) R1 -> Rd
+		int _index = OperatorIndex[operatorname];
+		if (_index <= SNE) _ram.saveStruct(line, loc, len, 0, 2, _index, 0);
+		else if (_index <= MOVE) _ram.saveStruct(line, loc, len, 0, 1, _index, 0);
+		else if (_index <= MFLO) _ram.saveStruct(line, loc, len, 0, 0, _index, 0);
+		else if (_index <= JALR) _ram.saveStruct(line, loc, len, 1, 1, _index, 0);
+		else if (_index <= SYSCALL) _ram.saveStruct(line, loc, len, 0, -1, _index, 0);
+		else if (_index <= DIVU) _ram.saveStruct(line, loc, len, 0, 2, _index, 0);
+		else if (_index <= JAL) _ram.saveStruct(line, loc, len, 0, -1, _index, 1);
+		else if (_index <= BLT) _ram.saveStruct(line, loc, len, 1, 2, _index, 1);
+		else if (_index <= BLTZ) _ram.saveStruct(line, loc, len, 1, 1, _index, 1);
+		else if (_index <= LW) _ram.saveStruct(line, loc, len, 0, 0, _index, 1);
+		else _ram.saveStruct(line, loc, len, 1, 1, _index, 1);
+	}
 
-	else if (name == "seq")	p = new comparation(r1, r2, r3, comparation::seq);
-	else if (name == "sge") p = new comparation(r1, r2, r3, comparation::sge);
-	else if (name == "sgt") p = new comparation(r1, r2, r3, comparation::sgt);
-	else if (name == "sle") p = new comparation(r1, r2, r3, comparation::sle);
-	else if (name == "slt") p = new comparation(r1, r2, r3, comparation::slt);
-	else if (name == "sne") p = new comparation(r1, r2, r3, comparation::sne);
-
-	else if (name == "b" || name == "jr" || name == "j")p = new b_jump(r1, 0);
-	else if (name == "jalr" || name == "jal")			p = new b_jump(r1, 1);
-	else if (name == "beq")		p = new beq(r1, r2, r3);
-
-	else if (name == "beqz")	p = new beq(r1, "", r2);
-	else if (name == "bne")		p = new beq(r1, r2, r3);
-	else if (name == "bnez")	p = new beq(r1, "", r2);
-	else if (name == "bge")		p = new bge(r1, r2, r3);
-	else if (name == "bgez")	p = new bge(r1, "", r2);
-	else if (name == "ble")		p = new ble(r1, r2, r3);
-	else if (name == "blez")	p = new ble(r1, "", r2);
-	else if (name == "bgt")		p = new bgt(r1, r2, r3);
-	else if (name == "bgtz")	p = new bgt(r1, "", r2);
-	else if (name == "blt")		p = new blt(r1, r2, r3);
-	else if (name == "bltz")	p = new blt(r1, "", r2);
-	_instruction.push_back(p);
 }
 
 
-//interprete
-void fetch(ifstream &fin, istream &sysin, ostream &sysout) {
-	string str;// instruction sentences
-	int ins_cnt = 0;
-	vector<string> _name, _r1, _r2, _r3;
-	bool text_block = 0;
+void code_scanf() {
+	string line;
+	for (int i = 0; i < Code.size(); ++i) {
+		line = Code[i];
+		int len = line.length(), loc = 0;
 
-	//if r2, r3 not exist --> it is ""
-
-	while (getline(fin, str)) {
-		//cout << str << '\n';
-		str += " ";// getline can't get a '\0' or '\n' or ' ', so add it specially
-		string tmp;
-		int i = 0;
-		while (str[i] == ' ' || str[i] == '\t') ++i;
-		if (str[i] == '.') {// "." order
-			++i;
-			tmp = get_phrase(str, i);
-			if (tmp == "align") {
-				++i;
-
-				int n = mstoi(get_phrase(str, i));
-				n = pow_2(n);
-				_memory.heap_top += (n - _memory.heap_top % n);// again % n;
-			}
-			else if (tmp == "ascii" || tmp == "asciiz") {
-				++i;
-				tmp = to_str(str, i);
-				memcpy(_memory.mem + _memory.heap_top, tmp.data(), tmp.length());
-				_memory.heap_top += tmp.length();
-				if (tmp == "asciiz") _memory.mem[_memory.heap_top++] = '\0';
-			}
-			else if (tmp == "byte" || tmp == "half" || tmp == "word") {
-				int m = ( tmp == "byte" ? 1 : (tmp == "half" ? 2 : 4) );
-				if (i == str.length()) throw order_error();
-				while (1) {
-					//if (i == str.length()) break;				
-					try {
-						++i;
-						int n = mstoi(get_phrase(str, i));
-						memcpy(_memory.mem + _memory.heap_top, &n, m);
-						_memory.heap_top += m;
-					}
-					catch (...) {
-						break;
-					}
-					
-					
-				}
-			}
-			else if (tmp == "space") {
-				++i;
-				int n = mstoi(get_phrase(str, i));
-				_memory.heap_top += n;
-			}
-			else if (tmp == "data" || tmp == "text") {
-				text_block = (tmp == "text");
-			}
+		int annotation = line.find('#');//deal annotation
+		if (annotation != -1) {
+			line.erase(annotation, len - annotation);
+			line.push_back('\n');
+			len = annotation + 1;
 		}
-		else if (*(&str.back() - 2) == ':' || *(&str.back() - 1) == ':') {
-			string tmp = get_phrase(str, i);
-			tmp.pop_back();
-			if (text_block) {
-				text_label[tmp] = ins_cnt;
-				//cout << tmp << "\tcur:\t"<<ins_cnt<<'\n';
+
+		for (; loc < len && (line[loc] == ' ' || line[loc] == '\t' || line[loc] == '\n'); ++loc); // "  .data" -> loc: "  ^data"
+		if (loc == len) continue;//wrong code
+		
+		int pos = line.find(':');
+		int ept = line.find('\"');
+		while (pos >= 0 && (ept == -1 || pos < ept)) {//deal label
+			string label_name(&line[loc], &line[pos]);
+			label[label_name] = _ram.mem_low;
+
+			for (++pos; pos < len && (line[pos] == ' ' || line[pos] == '\t' || line[pos] == '\n'); ++pos);
+			line.erase(0, pos);
+			loc = 0;
+			len -= pos;
+
+			pos = line.find(':');
+			ept = line.find('\"');
+		}
+		if (!len) continue;
+
+		manageString(line, loc, len);//other orders
+	}
+}
+
+void init(const char * argv, ifstream &fin, ostream &fout) {
+	fin.open(argv);
+
+	//prepare()
+	for (int i = 0; i < forOperator.size(); ++i) OperatorIndex[forOperator[i]] = i;
+	for (int i = 0; i < forRegister.size(); ++i) RegisterIndex[forRegister[i]] = i;
+	RegisterIndex["s8"] = 30;
+
+	//code_in();
+	string tmp;
+	while (getline(fin, tmp)) {
+		tmp.push_back('\n');
+		Code.push_back(tmp);
+	}
+
+	code_scanf();
+	_ram.mem_low = 0;
+	code_scanf();
+	_ram.reg[SP] = M - 1;
+}
+
+int simulate(ifstream &fin, ostream &fout) {
+	int cur_loc = label["main"];
+	operatorcode cur_code;
+	int cnt = 0;
+	while (1) {
+		cur_code.load(cur_loc);
+
+		if(cnt >= 7) Debug(cur_code, cnt);
+		else cnt++;
+
+		int tmp;// for compare order
+		int loc;//for store order
+		switch (cur_code.operatorindex) {
+		case(ADD):
+		case(ADDU):
+		case(ADDIU):
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + cur_code.imm;
+			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + _ram.reg[cur_code.regist[2]];
+			break;
+
+		case(SUB):
+		case(SUBU):
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - cur_code.imm;
+			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - _ram.reg[cur_code.regist[2]];
+			break;
+
+		case(XOR):
+		case(XORU):
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ cur_code.imm;
+			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ _ram.reg[cur_code.regist[2]];
+			break;
+		
+		case(REM):
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % cur_code.imm;
+			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % _ram.reg[cur_code.regist[2]];
+			break;
+		case(REMU):
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = (uint32_t) _ram.reg[cur_code.regist[1]] % (uint32_t)cur_code.imm;
+			else _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)_ram.reg[cur_code.regist[2]];
+			break;//deal unsigned
+
+
+		case(SEQ):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] == tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+		case(SGE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] >= tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+		case(SGT):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] > tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+		case(SLE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] <= tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+		case(SLT):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] < tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+		case(SNE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] != tmp) _ram.reg[cur_code.regist[0]] = 1;
+			else _ram.reg[cur_code.regist[0]] = 0;
+			break;
+
+		case(NEG):
+		case(NEGU):
+			_ram.reg[cur_code.regist[0]] = -_ram.reg[cur_code.regist[1]];
+			break;
+
+		case(LI):
+			_ram.reg[cur_code.regist[0]] = cur_code.imm;
+			break;
+		case(MOVE):
+			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]];
+			break;
+		case(MFHI):
+			_ram.reg[cur_code.regist[0]] = _ram.reg[HI];
+			break;
+		case(MFLO):
+			_ram.reg[cur_code.regist[0]] = _ram.reg[LO];
+			break;
+
+		case(JR):
+			cur_loc = _ram.reg[cur_code.regist[1]] - NXT;
+			break;
+		case(JALR):
+			_ram.reg[31] = cur_loc + NXT;
+			cur_loc = _ram.reg[cur_code.regist[1]] - NXT;
+			break;
+
+		case(MUL): 
+			if (cur_code.delta == 2) {
+				int64_t tmp = _ram.reg[cur_code.regist[0]];
+				if (cur_code.regist[1] == EMPTY) tmp *= cur_code.imm;
+				else tmp *= _ram.reg[cur_code.regist[1]];
+				_ram.reg[LO] = (int32_t)(tmp);
+				_ram.reg[HI] = tmp >> 32;
 			}
 			else {
-				data_label[tmp] = _memory.heap_top;
-				//cout << tmp << "\tcur:\t" << _memory.heap_top << '\n';
+				int64_t tmp = _ram.reg[cur_code.regist[1]];
+				if (cur_code.regist[2] == EMPTY) tmp *= cur_code.imm;
+				else tmp *= _ram.reg[cur_code.regist[2]];
+				_ram.reg[cur_code.regist[0]] = (int32_t)(tmp);
 			}
-		}
-		else {//text's instruction
-			string tmp = get_phrase(str, i);	++i;
-			if (tmp == "" || tmp == " ") continue;
-			else _name.push_back(tmp);
-			++ins_cnt;
-			_r1.push_back(get_phrase(str, i));	++i;// attention has $
-			_r2.push_back(get_phrase(str, i));	++i;
-			_r3.push_back(get_phrase(str, i));	++i;
-		}
-	}
-
-	for (int i = 0; i < ins_cnt; ++i) {
-		translate(_name[i], _r1[i], _r2[i], _r3[i], sysin, sysout);
-	}
-}
-
-void execute_pipeline() {
-	_memory.text_top = text_label["main"];
-	int ins_size = _instruction.size();
-	int cnt = 0;
-	queue<instruction*> IF, ID, Ex, MA, WB;
-	instruction* cur = nullptr;
-	while (_memory.text_top < ins_size || !IF.empty() || !ID.empty() || !Ex.empty() || !MA.empty() || !WB.empty()) {
-		//MA-->WB-->Ex-->ID-->IF:simualtor 5 level
-		//write first, then read
-
-		//MA
-		if (!MA.empty()) {
-			cur = MA.front();
-			MA.pop();
-			cur->memory_access();
-			delete cur;
-			cur = nullptr;
-		}
-		//WB
-		if (!WB.empty()) {
-			cur = WB.front();
-			WB.pop();
-			cur->write_back();
-			MA.push(cur);
-		}
-		//Ex
-		if (!Ex.empty()) {
-			cur = Ex.front();
-			Ex.pop();
-			cur->execute();
-			MA.push(cur);
-		}
-		//ID
-		if (!ID.empty()) {
-			cur = ID.front();
-			ID.pop();
-			cur->data_preparation();
-			Ex.push(cur);
-		}
-
-		//IF
-		if (_memory.text_top < ins_size) IF.push(_instruction[_memory.text_top++]->copy());
-		if (!IF.empty()) {
-			cur = IF.front();
-			IF.pop();
-			//already IF
-			ID.push(cur);
-		}
-	}
-}
-
-void execute_simple() {
-	_memory.text_top = text_label["main"];
-	int ins_vec_sz = _instruction.size();
-	int cnt = 0;
-	while (_memory.text_top < ins_vec_sz) {
-		//cout << "\nnum: " << ++cnt << "\tins: " << _memory.text_top << endl;
-		instruction *p = _instruction[_memory.text_top++]->copy();
+			break;
+		case(MULU):
+			if (cur_code.delta == 2) {
+				uint64_t tmp = _ram.reg[cur_code.regist[0]];
+				if (cur_code.regist[1] == EMPTY) tmp *= (uint32_t) cur_code.imm;
+				else tmp *= (uint32_t)_ram.reg[cur_code.regist[1]];
+				_ram.reg[LO] = (uint32_t)(tmp);
+				_ram.reg[HI] = tmp >> 32;
+			}
+			else {
+				uint32_t tmp = _ram.reg[cur_code.regist[1]];
+				if (cur_code.regist[2] == EMPTY) tmp *= (uint32_t)cur_code.imm;
+				else tmp *= (uint32_t)_ram.reg[cur_code.regist[2]];
+				_ram.reg[cur_code.regist[0]] = (uint32_t)(tmp);
+			}
+			break;
 		
-		//p->order();
+		case(DIV):
+			if (cur_code.delta == 2) {
+				int tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
+				_ram.reg[LO] = _ram.reg[cur_code.regist[0]] / tmp;
+				_ram.reg[HI] = _ram.reg[cur_code.regist[0]] % tmp;
+			}
+			else {
+				int tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
+				_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] / tmp;
+			}
+			break;
+		case(DIVU):
+			if (cur_code.delta == 2) {
+				uint32_t tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
+				_ram.reg[LO] = ((uint32_t) _ram.reg[cur_code.regist[0]]) / tmp;
+				_ram.reg[HI] = ((uint32_t)_ram.reg[cur_code.regist[0]]) % tmp;
+			}
+			else {
+				uint32_t tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
+				_ram.reg[cur_code.regist[0]] = ((uint32_t)_ram.reg[cur_code.regist[1]]) / tmp;
+			}
+			break;
+
+		case(B):
+		case(J):
+			cur_loc = cur_code.label - NXT;
+			break;
+		case(JAL):
+			_ram.reg[31] = cur_loc + NXT;
+			cur_loc = cur_code.label - NXT;
+			break;
+
+		case(BEQ):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] == tmp) cur_loc = cur_code.label - NXT;
+			break;
+		case(BNE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] != tmp) cur_loc = cur_code.label - NXT;
+			break;
+		case(BGE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] >= tmp) cur_loc = cur_code.label - NXT;
+			break;
+		case(BLE):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] <= tmp) cur_loc = cur_code.label - NXT;
+			break;
+		case(BGT):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] > tmp) cur_loc = cur_code.label - NXT;
+			break;
+		case(BLT):
+			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.regist[2]];
+			if (_ram.reg[cur_code.regist[1]] < tmp) cur_loc = cur_code.label - NXT;
+			break;
+
+		case(BEQZ):
+			if (_ram.reg[cur_code.regist[1]] == 0) cur_loc = cur_code.label - NXT;
+			break;
+		case(BNEZ):
+			if (_ram.reg[cur_code.regist[1]] != 0) cur_loc = cur_code.label - NXT;
+			break;
+		case(BLEZ):
+			if (_ram.reg[cur_code.regist[1]] <= 0) cur_loc = cur_code.label - NXT;
+			break;
+		case(BGEZ):
+			if (_ram.reg[cur_code.regist[1]] >= 0) cur_loc = cur_code.label - NXT;
+			break;
+		case(BGTZ):
+			if (_ram.reg[cur_code.regist[1]] > 0) cur_loc = cur_code.label - NXT;
+			break;
+		case(BLTZ):
+			if (_ram.reg[cur_code.regist[1]] < 0) cur_loc = cur_code.label - NXT;
+			break;
+
+		case(LA):
+			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = cur_code.label;
+			else  _ram.reg[cur_code.regist[0]] = cur_code.regist[1] + cur_code.delta;
+			break;
+		case(LB):
+			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int8_t*)(_ram.memory + cur_code.label));
+			else  _ram.reg[cur_code.regist[0]] = *((int8_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
+			break;
+		case(LH):
+			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int16_t*)(_ram.memory + cur_code.label));
+			else  _ram.reg[cur_code.regist[0]] = *((int16_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
+			break;
+		case(LW):
+			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int32_t*)(_ram.memory + cur_code.label));
+			else  _ram.reg[cur_code.regist[0]] = *((int32_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
+			break;
+
+		case(SB):
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 1);
+			break;
+		case(SH):
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 2);
+			break;
+		case(SW):
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 4);
+			break;
+
+		case(NOP):
+			break;
+		case(SYSCALL):
+			switch (_ram.reg[V0]) {
+			case(1):
+				fout << _ram.reg[A0];
+				break;
+			case(4): {
+				int loc = _ram.reg[A0];
+				while (_ram.memory[loc] != '\0') fout << _ram.memory[loc++];
+				break;
+			}
+
+			case(5):
+				cin >> _ram.reg[V0];
+				break;
+			case(8): {// if {} then can define int, string
+				int loc = _ram.reg[A0];
+				string str;
+				cin >> str;
+				if (str.length() > _ram.reg[A1] - 1)
+					//str = str.substr(0, _ram.reg[A1] - 1);
+					str = string(&str[0], &str[_ram.reg[A1] - 1]);
+				_ram.saveString(str, loc);
+				break;
+			}
+			case(9):
+				_ram.reg[V0] = _ram.mem_low;
+				_ram.mem_low += _ram.reg[A0];
+				break;
+			case(10):
+				return 0;
+			case(17):
+				return _ram.reg[A0];
+			default:
+				break;//wrong code
+			}
+			break;
+
+		default://wrong
+			break;
+		}
 
 
-		p->data_preparation();
-		p->execute();
-		p->memory_access();
-		p->write_back();
-		delete p;
-		
-		/*for (int i = 0; i < 34; ++i)
-		cout << _regist.reg[i] << " ";
-		cout << endl;*/
-		
+		cur_loc += NXT;//step
+
 	}
 }
 
-void clear() {
-	auto it = _instruction.begin();
-	while (it != _instruction.end()) 	_instruction.erase(it);
-}
-
-
-
-#define SIMPLE
-//#define FIVE_PIPELINE
-
+#define DEBUG
 
 int main(int argc, char *argv[]) {
+	ifstream fin;
 
-#ifdef RELEASE
-	ifstream main_fin;
-	main_fin.open(argv[1]);
-	if (!main_fin) throw file_error();
-	fetch(main_fin, cin, cout);
+	//ofstream fout;
+	ostream &fout = cout;
 
-#ifdef SIMPLE 
-	execute_simple();
+	//init(argv[1], fin, fout);
+	init("..\\test\\data\\2.s", fin, fout);
 
-#endif
 
-#ifdef FIVE_PIPELINE
-	execute_pipeline();
-#endif
 
-	clear();
-	main_fin.close();
+	int ex = simulate(fin, fout);
 
-#endif
-
-#ifdef DEBUG	
-	char num = '1';
-	string name = "../test/data/"; // or string name =  "..\\test\\data\\";
-	name += num;
-
-	ifstream main_fin(name + ".s");
-	ifstream testin(name + ".in");
-
-	if (!main_fin || !testin) throw file_error();
-
-	fetch(main_fin, testin, cout);
-
-#ifdef SIMPLE 
-		execute_simple();
-#endif
-#ifdef FIVE_PIPELINE
-		execute_pipeline();
-#endif
-
-	clear();
-	main_fin.close();
-	testin.close();
-
-#endif
-
+	fin.close();
+	exit(ex);// or return ex
 
 	return 0;
 }
