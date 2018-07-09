@@ -8,7 +8,8 @@
 #include "exception.hpp"
 
 #define M 10000000
-#define NXT 16
+#define ins_size 16
+#define EMPTY -1
 using namespace std;
 
 map<string, int> label;
@@ -57,7 +58,7 @@ enum MIPS_REGISTER {
 	T0, T1, T2, T3, T4, T5, T6, T7,
 	S0, S1, S2, S3, S4, S5, S6, S7,
 	T8, T9, K0, K1,
-	GP, SP, FP, RA, LO, HI, EMPTY
+	GP, SP, FP, RA, LO, HI, PC
 };
 const int S8 = 30;
 map<string, int> RegisterIndex;
@@ -93,29 +94,34 @@ public:
 	int reg[34] = { 0 };
 	int mem_low = 0;
 
-	static int storeg(string &s, int &loc) {
-		while (s[loc] != '$') ++loc;
-		++loc;
-		if (s[loc] >= '0' && s[loc] <= '9') {
+	ram() {
+		_ram.mem_low = 0;
+		_ram.reg[SP] = M - 1;
+	}
+
+	static int storeg(string &s, int &cur) {
+		while (s[cur] != '$') ++cur;
+		++cur;
+		if (s[cur] >= '0' && s[cur] <= '9') {
 			int ret = 0;
-			for (; s[loc] >= '0' && s[loc] <= '9'; ret = ret * 10 + s[loc] - '0', ++loc);
+			for (; s[cur] >= '0' && s[cur] <= '9'; ret = ret * 10 + s[cur] - '0', ++cur);
 			// cout << "Debug " << ret << '\n';
 			return ret;
 		}
 		else {
-			int nxt = loc;
-			for (; s[nxt] != ' ' && s[nxt] != '\t' && s[nxt] != '\n' && s[nxt] != ',' && s[nxt] != ')'; ++nxt);
-			string RegisterName(&s[loc], &s[nxt]);
-			loc = nxt;
+			int next = cur;
+			while(!skip(s[next]) && s[next] != ',' && s[next] != ')') ++next;
+			string RegisterName(&s[cur], &s[next]);
+			cur = next;
 			return RegisterIndex[RegisterName];
 		}
 	}
 
 
 	//placement new
-	void saveInt(int x, int & loc, int ord);
-	void saveString(string & str, int & loc);
-	void saveStruct(string & line, int & loc, int len, int l, int r, int index, bool isLabel);
+	void saveInt(int x, int & cur, int ord);
+	void saveString(string & str, int & cur);
+	void saveStruct(string & line, int & cur, int len, int l, int r, int index, bool isLabel);
 
 }_ram;
 
@@ -123,34 +129,70 @@ public:
 
 
 
-class operatorcode {
+class instruction {
 public:
-	char operatorindex;//the order
+	int8_t status;//the order
 
-	char regist[3];//存放寄存器，操作数1，操作数2
-	int imm, label, delta;
+	//存放寄存器，操作数1，操作数2
+	int8_t regist[3];//
+	//int8_t rdest, rsrc1, rsrc2;;
+	int imm, label, offset;
 
-	operatorcode(char index = 255) : operatorindex(index) {
+	instruction(int8_t index = 255) : status(index) {
 		for (int i = 0; i < 3; ++i) regist[i] = EMPTY;
-		delta = 0;
+		offset = 0;
 	}
 	void load(int loc);
 };
 
 
+
+
+
+
+
+
+
+
+
+//#define DEBUG
+
+
+
+
+
+
+
+
+
+
 #ifdef DEBUG
-void Debug(operatorcode & _OperatorCode, int & cnt) {
-	cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << forOperator[_OperatorCode.operatorindex] << '\n';
+void Debug(instruction & _order, int & cnt) {
+	cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << forOperator[_order.status] << '\n';
 	for (int i = 0; i < 3; ++i)
-		cout << "Register[" << i << "]: " << int(_OperatorCode.regist[i]) << " or " << forRegister[_OperatorCode.regist[i]] << '\n';
-	cout << "Delta: " << _OperatorCode.delta << '\n'
-		<< "Imm :" << _OperatorCode.imm << '\n'
-		<< "Label :" << _OperatorCode.label << "\n";
+		cout << "Register[" << i << "]: " << int(_order.regist[i]) << " or " << forRegister[_order.regist[i]] << '\n';
+	cout << "Delta: " << _order.offset << '\n'
+		<< "Imm :" << _order.imm << '\n'
+		<< "Label :" << _order.label << "\n";
 	for (int i = 0; i < 34; ++i) cout << i << '\t'; cout << '\n';
 	for (int i = 0; i < 34; ++i) cout << _ram.reg[i] << '\t'; cout << "\n}\n\n";
 }
 #endif
 
 #ifndef DEBUG
-void Debug(operatorcode & _OperatorCode, int & cnt) {}
+void Debug(instruction & _order, int & cnt) {}
 #endif
+
+
+
+
+
+
+/*
+string:
+
+string(char *a, char *b) :  new string is (from a to b-1)
+s.substr(start pos, size)
+s.stoi : can't oversize, cant transfer "ssss123" type
+
+*/
