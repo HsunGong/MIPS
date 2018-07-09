@@ -118,7 +118,6 @@
     <ClInclude Include="exception.hpp" />
     <ClInclude Include="Header.h" />
     <ClInclude Include="instruction.hpp" />
-    <ClInclude Include="order.hpp" />
     <ClInclude Include="storage.hpp" />
   </ItemGroup>
   <ItemGroup>

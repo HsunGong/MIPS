@@ -5,9 +5,9 @@
 
 void instruction::load(int loc) {
 		status = _ram.memory[loc++];
-		for (int i = 0; i < 3; ++i) {
-			regist[i] = _ram.memory[loc++];
-		}
+		//for (int i = 0; i < 3; ++i) {
+		//	regist[i] = _ram.memory[loc++];
+		//}
 		rdest = _ram.memory[loc++];
 		rsrc1 = _ram.memory[loc++];
 		rsrc2 = _ram.memory[loc++];

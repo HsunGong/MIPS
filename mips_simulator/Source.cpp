@@ -58,7 +58,7 @@ void manageString(string &line, int &cur, int len) {
 		string ins_name(&line[cur], &line[next]);
 
 		cur = next;//the last name of instruction + 1
-		int _index = OperatorIndex[ins_name];
+		int _index = Ins_type[ins_name];
 		switch (_index) {
 		//First_scanf:
 		case ADD: case ADDU: case ADDIU: case SUB: case SUBU:
@@ -132,9 +132,9 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 	fin.open(argv);
 
 	//prepare()
-	for (int i = 0; i < forOperator.size(); ++i) OperatorIndex[forOperator[i]] = i;
-	for (int i = 0; i < forRegister.size(); ++i) RegisterIndex[forRegister[i]] = i;
-	RegisterIndex["s8"] = 30;
+	for (int i = 0; i < forInstruction.size(); ++i) Ins_type[forInstruction[i]] = i;
+	for (int i = 0; i < forRegister.size(); ++i) Reg_type[forRegister[i]] = i;
+	Reg_type["s8"] = 30;
 
 	//code_in();
 	string tmp;
@@ -164,138 +164,135 @@ int simulate(ifstream &fin, ostream &fout) {
 		case(ADD):
 		case(ADDU):
 		case(ADDIU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.rdest] = (cur_code.rsrc2 == EMPTY) ? 
+				_ram.reg[cur_code.rsrc1] + cur_code.imm :
+				_ram.reg[cur_code.rsrc1] + _ram.reg[cur_code.rsrc2];
 			break;
 
 		case(SUB):
 		case(SUBU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.rdest] = _ram.reg[cur_code.rsrc1] -
+				((cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2]);
 			break;
 
 		case(XOR):
 		case(XORU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.rdest] = _ram.reg[cur_code.rsrc1] ^
+				((cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2]);
 			break;
 		
 		case(REM):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.rdest] = _ram.reg[cur_code.rsrc1] %
+				((cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2]);
 			break;
 		case(REMU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = (uint32_t) _ram.reg[cur_code.regist[1]] % (uint32_t)cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)_ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.rdest] = (uint32_t)_ram.reg[cur_code.rsrc1] %
+				(uint32_t)((cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2]);
 			break;//deal unsigned
 
 
 		case(SEQ):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			_ram.reg[cur_code.regist[0]] = (_ram.reg[cur_code.regist[1]] == tmp) ? 1 : 0;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			_ram.reg[cur_code.rdest] = (_ram.reg[cur_code.rsrc1] == tmp) ? 1 : 0;
 			break;
 		case(SGE):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			_ram.reg[cur_code.regist[0]] = (_ram.reg[cur_code.regist[1]] >= tmp) ? 1 : 0;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			_ram.reg[cur_code.rdest] = (_ram.reg[cur_code.rsrc1] >= tmp) ? 1 : 0;
 			break;
 		case(SGT):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			_ram.reg[cur_code.regist[0]] = (_ram.reg[cur_code.regist[1]] >= tmp) ? 1 : 0;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			_ram.reg[cur_code.rdest] = (_ram.reg[cur_code.rsrc1] >= tmp) ? 1 : 0;
 			break;
 		case(SLE):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			_ram.reg[cur_code.regist[0]] = (_ram.reg[cur_code.regist[1]] <= tmp) ? 1 : 0;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			_ram.reg[cur_code.rdest] = (_ram.reg[cur_code.rsrc1] <= tmp) ? 1 : 0;
 			break;
 		case(SLT):
-			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
-			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] < tmp) _ram.reg[cur_code.regist[0]] = 1;
-			else _ram.reg[cur_code.regist[0]] = 0;
+			if (cur_code.rsrc2 == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] < tmp) _ram.reg[cur_code.rdest] = 1;
+			else _ram.reg[cur_code.rdest] = 0;
 			break;
 		case(SNE):
-			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
-			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] != tmp) _ram.reg[cur_code.regist[0]] = 1;
-			else _ram.reg[cur_code.regist[0]] = 0;
+			if (cur_code.rsrc2 == EMPTY) tmp = cur_code.imm;
+			else tmp = _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] != tmp) _ram.reg[cur_code.rdest] = 1;
+			else _ram.reg[cur_code.rdest] = 0;
 			break;
 
 		case(NEG):
 		case(NEGU):
-			_ram.reg[cur_code.regist[0]] = -_ram.reg[cur_code.regist[1]];
+			_ram.reg[cur_code.rdest] = -_ram.reg[cur_code.rsrc1];
 			break;
 
 		case(LI):
-			_ram.reg[cur_code.regist[0]] = cur_code.imm;
+			_ram.reg[cur_code.rdest] = cur_code.imm;
 			break;
 		case(MOVE):
-			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]];
+			_ram.reg[cur_code.rdest] = _ram.reg[cur_code.rsrc1];
 			break;
 		case(MFHI):
-			_ram.reg[cur_code.regist[0]] = _ram.reg[HI];
+			_ram.reg[cur_code.rdest] = _ram.reg[HI];
 			break;
 		case(MFLO):
-			_ram.reg[cur_code.regist[0]] = _ram.reg[LO];
+			_ram.reg[cur_code.rdest] = _ram.reg[LO];
 			break;
 
 		case(JR):
-			cur_loc = _ram.reg[cur_code.regist[1]] - ins_size;
+			cur_loc = _ram.reg[cur_code.rsrc1] - ins_size;
 			break;
 		case(JALR):
 			_ram.reg[31] = cur_loc + ins_size;
-			cur_loc = _ram.reg[cur_code.regist[1]] - ins_size;
+			cur_loc = _ram.reg[cur_code.rsrc1] - ins_size;
 			break;
 
 		case(MUL): 
 			if (cur_code.offset == 2) {
-				int64_t tmp = _ram.reg[cur_code.regist[0]];
-				if (cur_code.regist[1] == EMPTY) tmp *= cur_code.imm;
-				else tmp *= _ram.reg[cur_code.regist[1]];
+				int64_t tmp = _ram.reg[cur_code.rdest];
+				tmp *= (cur_code.rsrc1 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc1];
 				_ram.reg[LO] = (int32_t)(tmp);
 				_ram.reg[HI] = tmp >> 32;
 			}
 			else {
-				int64_t tmp = _ram.reg[cur_code.regist[1]];
-				if (cur_code.regist[2] == EMPTY) tmp *= cur_code.imm;
-				else tmp *= _ram.reg[cur_code.regist[2]];
-				_ram.reg[cur_code.regist[0]] = (int32_t)(tmp);
+				int64_t tmp = _ram.reg[cur_code.rsrc1];
+				tmp *= (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+				_ram.reg[cur_code.rdest] = (int32_t)(tmp);
 			}
 			break;
-		case(MULU):
+		case(MULU)://offset means size 
 			if (cur_code.offset == 2) {
-				uint64_t tmp = _ram.reg[cur_code.regist[0]];
-				if (cur_code.regist[1] == EMPTY) tmp *= (uint32_t) cur_code.imm;
-				else tmp *= (uint32_t)_ram.reg[cur_code.regist[1]];
+				uint64_t tmp = _ram.reg[cur_code.rdest];
+				tmp *= (cur_code.rsrc1 == EMPTY) ? (uint32_t) cur_code.imm : (uint32_t)_ram.reg[cur_code.rsrc1];
 				_ram.reg[LO] = (uint32_t)(tmp);
 				_ram.reg[HI] = tmp >> 32;
 			}
 			else {
-				uint32_t tmp = _ram.reg[cur_code.regist[1]];
-				if (cur_code.regist[2] == EMPTY) tmp *= (uint32_t)cur_code.imm;
-				else tmp *= (uint32_t)_ram.reg[cur_code.regist[2]];
-				_ram.reg[cur_code.regist[0]] = (uint32_t)(tmp);
+				uint32_t tmp = _ram.reg[cur_code.rsrc1];
+				tmp *= (cur_code.rsrc2 == EMPTY) ? (uint32_t)cur_code.imm : (uint32_t)_ram.reg[cur_code.rsrc2];
+				_ram.reg[cur_code.rdest] = (uint32_t)(tmp);
 			}
 			break;
 		
 		case(DIV):
 			if (cur_code.offset == 2) {
-				int tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
-				_ram.reg[LO] = _ram.reg[cur_code.regist[0]] / tmp;
-				_ram.reg[HI] = _ram.reg[cur_code.regist[0]] % tmp;
+				int tmp = (cur_code.rsrc1 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc1];
+				_ram.reg[LO] = _ram.reg[cur_code.rdest] / tmp;
+				_ram.reg[HI] = _ram.reg[cur_code.rdest] % tmp;
 			}
 			else {
-				int tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-				_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] / tmp;
+				int tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+				_ram.reg[cur_code.rdest] = _ram.reg[cur_code.rsrc1] / tmp;
 			}
 			break;
 		case(DIVU):
 			if (cur_code.offset == 2) {
-				uint32_t tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
-				_ram.reg[LO] = ((uint32_t) _ram.reg[cur_code.regist[0]]) / tmp;
-				_ram.reg[HI] = ((uint32_t)_ram.reg[cur_code.regist[0]]) % tmp;
+				uint32_t tmp = (cur_code.rsrc1 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc1];
+				_ram.reg[LO] = ((uint32_t) _ram.reg[cur_code.rdest]) / tmp;
+				_ram.reg[HI] = ((uint32_t)_ram.reg[cur_code.rsrc1]) % tmp;
 			}
 			else {
-				uint32_t tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-				_ram.reg[cur_code.regist[0]] = ((uint32_t)_ram.reg[cur_code.regist[1]]) / tmp;
+				uint32_t tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+				_ram.reg[cur_code.rdest] = ((uint32_t)_ram.reg[cur_code.rsrc1]) / tmp;
 			}
 			break;
 
@@ -309,81 +306,81 @@ int simulate(ifstream &fin, ostream &fout) {
 			break;
 
 		case(BEQ):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] == tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] == tmp) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BNE):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] != tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] != tmp) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BGE):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] >= tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] >= tmp) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BLE):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] <= tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] <= tmp) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BGT):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] > tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] > tmp) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BLT):
-			tmp = (cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] < tmp) cur_loc = cur_code.label - ins_size;
+			tmp = (cur_code.rsrc2 == EMPTY) ? cur_code.imm : _ram.reg[cur_code.rsrc2];
+			if (_ram.reg[cur_code.rsrc1] < tmp) cur_loc = cur_code.label - ins_size;
 			break;
 
 		case(BEQZ):
-			if (_ram.reg[cur_code.regist[1]] == 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] == 0) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BNEZ):
-			if (_ram.reg[cur_code.regist[1]] != 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] != 0) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BLEZ):
-			if (_ram.reg[cur_code.regist[1]] <= 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] <= 0) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BGEZ):
-			if (_ram.reg[cur_code.regist[1]] >= 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] >= 0) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BGTZ):
-			if (_ram.reg[cur_code.regist[1]] > 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] > 0) cur_loc = cur_code.label - ins_size;
 			break;
 		case(BLTZ):
-			if (_ram.reg[cur_code.regist[1]] < 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.rsrc1] < 0) cur_loc = cur_code.label - ins_size;
 			break;
 
 		case(LA):
-			_ram.reg[cur_code.regist[0]] = (cur_code.regist[1] == EMPTY) ? 
+			_ram.reg[cur_code.rdest] = (cur_code.rsrc1 == EMPTY) ?
 				cur_code.label :
-				cur_code.regist[1] + cur_code.offset;
+				cur_code.rsrc1 + cur_code.offset;
 			break;
 		case(LB):
-			_ram.reg[cur_code.regist[0]] = (cur_code.regist[1] == EMPTY) ?
+			_ram.reg[cur_code.rdest] = (cur_code.rsrc1 == EMPTY) ?
 				*((int8_t*)(_ram.memory + cur_code.label)) :
-				*((int8_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));
+				*((int8_t*)(_ram.memory + _ram.reg[cur_code.rsrc1] + cur_code.offset));
 			break;
 		case(LH):
-			_ram.reg[cur_code.regist[0]] = (cur_code.regist[1] == EMPTY) ?
+			_ram.reg[cur_code.rdest] = (cur_code.rsrc1 == EMPTY) ?
 				*((int16_t*)(_ram.memory + cur_code.label)) :
-				*((int16_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));			
+				*((int16_t*)(_ram.memory + _ram.reg[cur_code.rsrc1] + cur_code.offset));
 			break;
 		case(LW):			
-			_ram.reg[cur_code.regist[0]] = (cur_code.regist[1] == EMPTY) ?
+			_ram.reg[cur_code.rdest] = (cur_code.rsrc1 == EMPTY) ?
 				*((int32_t*)(_ram.memory + cur_code.label)) : 
-				*((int32_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));
+				*((int32_t*)(_ram.memory + _ram.reg[cur_code.rsrc1] + cur_code.offset));
 			break;
 
 		case(SB):
-			loc = (cur_code.regist[0] == EMPTY) ? cur_code.label :  _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 1);
+			loc = (cur_code.rdest == EMPTY) ? cur_code.label :  _ram.reg[cur_code.rdest] + cur_code.offset;
+			_ram.saveInt(_ram.reg[cur_code.rsrc1], loc, 1);
 			break;
 		case(SH):
-			loc = (cur_code.regist[0] == EMPTY) ? cur_code.label : _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 2);
+			loc = (cur_code.rdest == EMPTY) ? cur_code.label : _ram.reg[cur_code.rdest] + cur_code.offset;
+			_ram.saveInt(_ram.reg[cur_code.rsrc1], loc, 2);
 			break;
 		case(SW):
-			loc = (cur_code.regist[0] == EMPTY) ? cur_code.label : _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 4);
+			loc = (cur_code.rdest == EMPTY) ? cur_code.label : _ram.reg[cur_code.rdest] + cur_code.offset;
+			_ram.saveInt(_ram.reg[cur_code.rsrc1], loc, 4);
 			break;
 
 		case(NOP):
@@ -444,7 +441,7 @@ int main(int argc, char *argv[]) {
 	ostream &fout = cout;
 
 	//init(argv[1], fin, fout);
-	init("..\\test\\data\\1.s", fin, fout);
+	init(argv[1], fin, fout);
 
 
 

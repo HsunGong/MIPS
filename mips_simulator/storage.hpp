@@ -48,7 +48,20 @@ void ram::saveStruct(string & line, int & cur, int len, int l, int r, int status
 		while(cur < len && (skip(line[cur]) || line[cur] == ',')) ++cur;
 		if (cur == len) break;
 
-		if (line[cur] == '$') tmp.regist[i] = storeg(line, cur);
+		if (line[cur] == '$') {
+			switch (i) {
+			case(0):
+				tmp.rdest = storeg(line, cur);
+				break;
+			case(1):
+				tmp.rsrc1 = storeg(line, cur);
+				break;
+			case(2):
+				tmp.rsrc2 = storeg(line, cur);
+				break;
+			}
+			
+		}
 		else tmp.imm = mstoi(line, cur);
 
 		++i;
@@ -60,8 +73,8 @@ void ram::saveStruct(string & line, int & cur, int len, int l, int r, int status
 			tmp.offset = mstoi(line, cur);
 			++cur;
 
-			if (tmp.regist[0] == EMPTY) tmp.regist[0] = storeg(line, cur);
-			else tmp.regist[1] = storeg(line, cur);
+			if (tmp.rdest == EMPTY) tmp.rdest = storeg(line, cur);
+			else tmp.rsrc1 = storeg(line, cur);
 		}
 		else {
 			int next = cur;
