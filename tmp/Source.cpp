@@ -4,97 +4,98 @@
 
 
 
-void manageString(string &line, int &cur, int len) {
-	
-	if (line[cur] == '.') {
-		int next = cur, k, cmp, multime = 1;
-		while(!skip(line[next])) ++next;
-		string key(&line[cur + 1], &line[next]), str;
+void manageString(string &line, int &loc, int len) {
+	if (line[loc] == '.') {
+		int next = loc, k, cmp, multime = 1;
+		for (; line[next] != ' ' && line[next] != '\t' && line[next] != '\n'; ++next);
+		string key(&line[loc + 1], &line[next]), str;
 
-		//get memory sattled
 		switch (key[3]) {// '.' order
 		case('g')://align
-			k = mstoi(line, cur);
+			k = mstoi(line, loc);
 			cmp = 2 << (k - 1);
-			while (_ram.heap_top > cmp) {
-				cmp += 2 << (k - 1);
-				++multime;
-			}
-			_ram.heap_top = cmp;
+			//while (_ram.mem_low > cmp) {
+			//	cmp += 2 << (k - 1);
+			//	++multime;
+			//}
+			for (; _ram.mem_low > cmp; cmp += (2 << (k - 1)), ++multime);
+			_ram.mem_low = cmp;
 			break;
 		case('i')://ascii/asciiz
-			while(skip(line[next])) ++next;
-			cur = next++;
-			while( line[next] != '\"') ++next;
+			//while (skip(line[next])) ++next;
+			//loc = next;// has sth
+			//++next;//next is (left)'\"'
+			//while (line[next] != '\"') ++next;//right "
+			for (; line[next] == ' ' || line[next] == '\t'; ++next); loc = next;
+			for (++next; line[next] != '\"'; ++next);
 
-			str = string(&line[cur + 1], &line[next]);
-			_ram.saveString(str, _ram.heap_top);
-			if (key.length() == 6) _ram.memory[_ram.heap_top++] = '\0';
+			str = string(&line[loc + 1], &line[next]);
+			_ram.saveString(str, _ram.mem_low);
+			if (key.length() == 6) _ram.memory[_ram.mem_low++] = '\0';
 			break;
 		case('e')://byte
-			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 1); }
-			while (line[cur++] == ',');
+			do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 1);}//whether it is oko?
+			while (line[loc++] == ',');///???????? is it work>>
 			break;
 		case('f')://half
-			do {_ram.saveInt(mstoi(line, cur), _ram.heap_top, 2);} 
-			while (line[cur++] == ',');
-			//for (_ram.saveInt(mstoi(line, cur), _ram.heap_top, 2); line[cur] == ','; _ram.saveInt(mstoi(line, ++cur), _ram.heap_top, 1));
+			//do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 2);} 
+			//while (line[loc++] == ',');
+			for (_ram.saveInt(mstoi(line, loc), _ram.mem_low, 2); line[loc] == ','; _ram.saveInt(mstoi(line, ++loc), _ram.mem_low, 1));
+
 			break;
 		case('d')://word
-			do {_ram.saveInt(mstoi(line, cur), _ram.heap_top, 4);}
-			while (line[cur++] == ',');
+			//do {_ram.saveInt(mstoi(line, loc), _ram.mem_low, 4);}
+			//while (line[loc++] == ',');
+			for (_ram.saveInt(mstoi(line, loc), _ram.mem_low, 4); line[loc] == ','; _ram.saveInt(mstoi(line, ++loc), _ram.mem_low, 1));
+
 			break;
 		case('c')://space
-			_ram.heap_top += mstoi(line, cur);
+			_ram.mem_low += mstoi(line, loc);
 			break;
 		default://data---text
 			return;
 		}
 	}
 	else {//instructions
-		int next = cur;
-		while(!skip(line[next])) ++next;
-		string ins(&line[cur], &line[next]);
-		cur = next;
-		int _index = Ins_map[ins];
+		int nxt = loc;
+		for (; line[nxt] != ' ' && line[nxt] != '\t' && line[nxt] != '\n'; ++nxt);
+		string operatorname(&line[loc], &line[nxt]);
+		loc = nxt;
+		////First_scanf:
+		//ADD, ADDU, ADDIU, SUB, SUBU, XOR, XORU, REM, REMU, SEQ, SGE, SGT, SLE, SLT, SNE, // Rd R1 R2/Imm
+		//	NEG, NEGU, LI, MOVE, //Rd R1/Imm
+		//	MFHI, MFLO, //Rd
+		//	JR, JALR, //R1
+		//	NOP, SYSCALL,
+		//	MUL, MULU, DIV, DIVU, //R1 R2/Imm
+		//						  //Second_scanf:
+		//	B, J, JAL, //Label 
+		//	BEQ, BNE, BGE, BLE, BGT, BLT, //R1 R2/Imm Label 
+		//	BEQZ, BNEZ, BLEZ, BGEZ, BGTZ, BLTZ, //R1 Label 
+		//	LA, LB, LH, LW, //Rd Address (Del) R1 -> Rd
+		//	SB, SH, SW //R1 Address (Del) R1 -> Rd
+		int _index = OperatorIndex[operatorname];
+		if (_index <= SNE) _ram.saveStruct(line, loc, len, 0, 2, _index, 0);
+		else if (_index <= MOVE) _ram.saveStruct(line, loc, len, 0, 1, _index, 0);
+		else if (_index <= MFLO) _ram.saveStruct(line, loc, len, 0, 0, _index, 0);
+		else if (_index <= JALR) _ram.saveStruct(line, loc, len, 1, 1, _index, 0);
+		else if (_index <= SYSCALL) _ram.saveStruct(line, loc, len, 0, -1, _index, 0);
+		else if (_index <= DIVU) _ram.saveStruct(line, loc, len, 0, 2, _index, 0);
+		else if (_index <= JAL) _ram.saveStruct(line, loc, len, 0, -1, _index, 1);
+		else if (_index <= BLT) _ram.saveStruct(line, loc, len, 1, 2, _index, 1);
+		else if (_index <= BLTZ) _ram.saveStruct(line, loc, len, 1, 1, _index, 1);
+		else if (_index <= LW) _ram.saveStruct(line, loc, len, 0, 0, _index, 1);
+		else _ram.saveStruct(line, loc, len, 1, 1, _index, 1);
+	}
 
-		switch (_index) {
-		//First_scanf:
-		case ADD: case ADDU: case ADDIU: case SUB: case SUBU: 
-		case XOR: case XORU: case REM: case REMU:
-		case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE: // Rd R1 R2/Imm
-			_ram.saveStruct(line, cur, len, 0, 2, _index, 0); break;
-		case NEG: case NEGU: case LI: case MOVE: //Rd R1/Imm
-			_ram.saveStruct(line, cur, len, 0, 1, _index, 0); break;
-		case MFHI: case MFLO: //Rd
-			_ram.saveStruct(line, cur, len, 0, 0, _index, 0); break;
-		case JR: case JALR: //R1
-			_ram.saveStruct(line, cur, len, 1, 1, _index, 0); break;
-		case NOP: case SYSCALL:
-			_ram.saveStruct(line, cur, len, 0, -1, _index, 0); break;
-		case MUL: case MULU: case DIV: case DIVU: //R1 R2/Imm
-			_ram.saveStruct(line, cur, len, 0, 2, _index, 0); break;
-		//Second_scanf:
-		case B: case J: case JAL: //Label 
-			_ram.saveStruct(line, cur, len, 0, -1, _index, 1); break;
-		case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT: //R1 R2/Imm Label 
-			_ram.saveStruct(line, cur, len, 1, 2, _index, 1); break;
-		case 	BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ: //R1 Label 
-			_ram.saveStruct(line, cur, len, 1, 1, _index, 1); break;
-		case LA: case LB: case LH: case LW: //Rd Address (Del) R1 -> Rd
-			_ram.saveStruct(line, cur, len, 0, 0, _index, 1); break;
-		case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
-			_ram.saveStruct(line, cur, len, 1, 1, _index, 1); break;
-		}
-		}
 }
 
 
-void code_scanf(int second_scanf = 0) {
+void code_scanf() {
 	string line;
 	for (int i = 0; i < Code.size(); ++i) {
 		line = Code[i];
-		int len = line.length(), cur = 0;
+		int len = line.length(), loc = 0;
 
 		int annotation = line.find('#');//deal annotation
 		if (annotation != -1) {
@@ -103,19 +104,18 @@ void code_scanf(int second_scanf = 0) {
 			len = annotation + 1;
 		}
 
-		while(cur < len &&  skip(line[cur])) ++cur; // "  .data" -> cur: "  ^data"
-		if (cur == len) continue;//wrong code
-
+		for (; loc < len && (line[loc] == ' ' || line[loc] == '\t' || line[loc] == '\n'); ++loc); // "  .data" -> loc: "  ^data"
+		if (loc == len) continue;//wrong code
+		
 		int pos = line.find(':');
 		int ept = line.find('\"');
 		while (pos >= 0 && (ept == -1 || pos < ept)) {//deal label
-			string label_name(&line[cur], &line[pos]);
-			label[label_name] = _ram.heap_top;
+			string label_name(&line[loc], &line[pos]);
+			label[label_name] = _ram.mem_low;
 
-			++pos;
-			while(pos < len && skip(line[pos])) ++pos;
+			for (++pos; pos < len && (line[pos] == ' ' || line[pos] == '\t' || line[pos] == '\n'); ++pos);
 			line.erase(0, pos);
-			cur = 0;
+			loc = 0;
 			len -= pos;
 
 			pos = line.find(':');
@@ -123,7 +123,7 @@ void code_scanf(int second_scanf = 0) {
 		}
 		if (!len) continue;
 
-		manageString(line, cur, len);//other orders
+		manageString(line, loc, len);//other orders
 	}
 }
 
@@ -131,9 +131,9 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 	fin.open(argv);
 
 	//prepare()
-	for (int i = 0; i < forIns.size(); ++i) Ins_map[forIns[i]] = i;
-	for (int i = 0; i < forReg.size(); ++i) Reg_map[forReg[i]] = i;
-	Reg_map["s8"] = 30;
+	for (int i = 0; i < forOperator.size(); ++i) OperatorIndex[forOperator[i]] = i;
+	for (int i = 0; i < forRegister.size(); ++i) RegisterIndex[forRegister[i]] = i;
+	RegisterIndex["s8"] = 30;
 
 	//code_in();
 	string tmp;
@@ -142,25 +142,25 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 		Code.push_back(tmp);
 	}
 
-	code_scanf(0);
-	_ram.heap_top = 0;//have to do it twice
-	code_scanf(1);
-	//_ram.reg[SP] = M - 1;
+	code_scanf();
+	_ram.mem_low = 0;
+	code_scanf();
+	_ram.reg[SP] = M - 1;
 }
 
 int simulate(ifstream &fin, ostream &fout) {
 	int cur_loc = label["main"];
-	instruction cur_code;
+	operatorcode cur_code;
 	int cnt = 0;
 	while (1) {
 		cur_code.load(cur_loc);
 
-		if (cnt >= 7) Debug(cur_code, cnt);
+		if(cnt >= 7) Debug(cur_code, cnt);
 		else cnt++;
 
 		int tmp;// for compare order
-		int cur;//for store order
-		switch (cur_code.Ins_type) {
+		int loc;//for store order
+		switch (cur_code.operatorindex) {
 		case(ADD):
 		case(ADDU):
 		case(ADDIU):
@@ -179,13 +179,13 @@ int simulate(ifstream &fin, ostream &fout) {
 			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ cur_code.imm;
 			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ _ram.reg[cur_code.regist[2]];
 			break;
-
+		
 		case(REM):
 			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % cur_code.imm;
 			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % _ram.reg[cur_code.regist[2]];
 			break;
 		case(REMU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)cur_code.imm;
+			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = (uint32_t) _ram.reg[cur_code.regist[1]] % (uint32_t)cur_code.imm;
 			else _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)_ram.reg[cur_code.regist[2]];
 			break;//deal unsigned
 
@@ -246,15 +246,15 @@ int simulate(ifstream &fin, ostream &fout) {
 			break;
 
 		case(JR):
-			cur_loc = _ram.reg[cur_code.regist[1]] - ins_size;
+			cur_loc = _ram.reg[cur_code.regist[1]] - NXT;
 			break;
 		case(JALR):
-			_ram.reg[31] = cur_loc + ins_size;
-			cur_loc = _ram.reg[cur_code.regist[1]] - ins_size;
+			_ram.reg[31] = cur_loc + NXT;
+			cur_loc = _ram.reg[cur_code.regist[1]] - NXT;
 			break;
 
-		case(MUL):
-			if (cur_code.offset == 2) {
+		case(MUL): 
+			if (cur_code.delta == 2) {
 				int64_t tmp = _ram.reg[cur_code.regist[0]];
 				if (cur_code.regist[1] == EMPTY) tmp *= cur_code.imm;
 				else tmp *= _ram.reg[cur_code.regist[1]];
@@ -269,9 +269,9 @@ int simulate(ifstream &fin, ostream &fout) {
 			}
 			break;
 		case(MULU):
-			if (cur_code.offset == 2) {
+			if (cur_code.delta == 2) {
 				uint64_t tmp = _ram.reg[cur_code.regist[0]];
-				if (cur_code.regist[1] == EMPTY) tmp *= (uint32_t)cur_code.imm;
+				if (cur_code.regist[1] == EMPTY) tmp *= (uint32_t) cur_code.imm;
 				else tmp *= (uint32_t)_ram.reg[cur_code.regist[1]];
 				_ram.reg[LO] = (uint32_t)(tmp);
 				_ram.reg[HI] = tmp >> 32;
@@ -283,9 +283,9 @@ int simulate(ifstream &fin, ostream &fout) {
 				_ram.reg[cur_code.regist[0]] = (uint32_t)(tmp);
 			}
 			break;
-
+		
 		case(DIV):
-			if (cur_code.offset == 2) {
+			if (cur_code.delta == 2) {
 				int tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
 				_ram.reg[LO] = _ram.reg[cur_code.regist[0]] / tmp;
 				_ram.reg[HI] = _ram.reg[cur_code.regist[0]] % tmp;
@@ -296,9 +296,9 @@ int simulate(ifstream &fin, ostream &fout) {
 			}
 			break;
 		case(DIVU):
-			if (cur_code.offset == 2) {
+			if (cur_code.delta == 2) {
 				uint32_t tmp = (cur_code.regist[1] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[1]];
-				_ram.reg[LO] = ((uint32_t)_ram.reg[cur_code.regist[0]]) / tmp;
+				_ram.reg[LO] = ((uint32_t) _ram.reg[cur_code.regist[0]]) / tmp;
 				_ram.reg[HI] = ((uint32_t)_ram.reg[cur_code.regist[0]]) % tmp;
 			}
 			else {
@@ -309,94 +309,94 @@ int simulate(ifstream &fin, ostream &fout) {
 
 		case(B):
 		case(J):
-			cur_loc = cur_code.label - ins_size;
+			cur_loc = cur_code.label - NXT;
 			break;
 		case(JAL):
-			_ram.reg[31] = cur_loc + ins_size;
-			cur_loc = cur_code.label - ins_size;
+			_ram.reg[31] = cur_loc + NXT;
+			cur_loc = cur_code.label - NXT;
 			break;
 
 		case(BEQ):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] == tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] == tmp) cur_loc = cur_code.label - NXT;
 			break;
 		case(BNE):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] != tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] != tmp) cur_loc = cur_code.label - NXT;
 			break;
 		case(BGE):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] >= tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] >= tmp) cur_loc = cur_code.label - NXT;
 			break;
 		case(BLE):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] <= tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] <= tmp) cur_loc = cur_code.label - NXT;
 			break;
 		case(BGT):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] > tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] > tmp) cur_loc = cur_code.label - NXT;
 			break;
 		case(BLT):
 			if (cur_code.regist[2] == EMPTY) tmp = cur_code.imm;
 			else tmp = _ram.reg[cur_code.regist[2]];
-			if (_ram.reg[cur_code.regist[1]] < tmp) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] < tmp) cur_loc = cur_code.label - NXT;
 			break;
 
 		case(BEQZ):
-			if (_ram.reg[cur_code.regist[1]] == 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] == 0) cur_loc = cur_code.label - NXT;
 			break;
 		case(BNEZ):
-			if (_ram.reg[cur_code.regist[1]] != 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] != 0) cur_loc = cur_code.label - NXT;
 			break;
 		case(BLEZ):
-			if (_ram.reg[cur_code.regist[1]] <= 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] <= 0) cur_loc = cur_code.label - NXT;
 			break;
 		case(BGEZ):
-			if (_ram.reg[cur_code.regist[1]] >= 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] >= 0) cur_loc = cur_code.label - NXT;
 			break;
 		case(BGTZ):
-			if (_ram.reg[cur_code.regist[1]] > 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] > 0) cur_loc = cur_code.label - NXT;
 			break;
 		case(BLTZ):
-			if (_ram.reg[cur_code.regist[1]] < 0) cur_loc = cur_code.label - ins_size;
+			if (_ram.reg[cur_code.regist[1]] < 0) cur_loc = cur_code.label - NXT;
 			break;
 
 		case(LA):
 			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = cur_code.label;
-			else  _ram.reg[cur_code.regist[0]] = cur_code.regist[1] + cur_code.offset;
+			else  _ram.reg[cur_code.regist[0]] = cur_code.regist[1] + cur_code.delta;
 			break;
 		case(LB):
 			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int8_t*)(_ram.memory + cur_code.label));
-			else  _ram.reg[cur_code.regist[0]] = *((int8_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));
+			else  _ram.reg[cur_code.regist[0]] = *((int8_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
 			break;
 		case(LH):
 			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int16_t*)(_ram.memory + cur_code.label));
-			else  _ram.reg[cur_code.regist[0]] = *((int16_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));
+			else  _ram.reg[cur_code.regist[0]] = *((int16_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
 			break;
 		case(LW):
 			if (cur_code.regist[1] == EMPTY) _ram.reg[cur_code.regist[0]] = *((int32_t*)(_ram.memory + cur_code.label));
-			else  _ram.reg[cur_code.regist[0]] = *((int32_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.offset));
+			else  _ram.reg[cur_code.regist[0]] = *((int32_t*)(_ram.memory + _ram.reg[cur_code.regist[1]] + cur_code.delta));
 			break;
 
 		case(SB):
-			if (cur_code.regist[0] == EMPTY) cur = cur_code.label;
-			else cur = _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], cur, 1);
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 1);
 			break;
 		case(SH):
-			if (cur_code.regist[0] == EMPTY) cur = cur_code.label;
-			else cur = _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], cur, 2);
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 2);
 			break;
 		case(SW):
-			if (cur_code.regist[0] == EMPTY) cur = cur_code.label;
-			else cur = _ram.reg[cur_code.regist[0]] + cur_code.offset;
-			_ram.saveInt(_ram.reg[cur_code.regist[1]], cur, 4);
+			if (cur_code.regist[0] == EMPTY) loc = cur_code.label;
+			else loc = _ram.reg[cur_code.regist[0]] + cur_code.delta;
+			_ram.saveInt(_ram.reg[cur_code.regist[1]], loc, 4);
 			break;
 
 		case(NOP):
@@ -407,8 +407,8 @@ int simulate(ifstream &fin, ostream &fout) {
 				fout << _ram.reg[A0];
 				break;
 			case(4): {
-				int cur = _ram.reg[A0];
-				while (_ram.memory[cur] != '\0') fout << _ram.memory[cur++];
+				int loc = _ram.reg[A0];
+				while (_ram.memory[loc] != '\0') fout << _ram.memory[loc++];
 				break;
 			}
 
@@ -416,18 +416,18 @@ int simulate(ifstream &fin, ostream &fout) {
 				cin >> _ram.reg[V0];
 				break;
 			case(8): {// if {} then can define int, string
-				int cur = _ram.reg[A0];
+				int loc = _ram.reg[A0];
 				string str;
 				cin >> str;
 				if (str.length() > _ram.reg[A1] - 1)
 					//str = str.substr(0, _ram.reg[A1] - 1);
 					str = string(&str[0], &str[_ram.reg[A1] - 1]);
-				_ram.saveString(str, cur);
+				_ram.saveString(str, loc);
 				break;
 			}
 			case(9):
-				_ram.reg[V0] = _ram.heap_top;
-				_ram.heap_top += _ram.reg[A0];
+				_ram.reg[V0] = _ram.mem_low;
+				_ram.mem_low += _ram.reg[A0];
 				break;
 			case(10):
 				return 0;
@@ -443,12 +443,12 @@ int simulate(ifstream &fin, ostream &fout) {
 		}
 
 
-		cur_loc += ins_size;//step
+		cur_loc += NXT;//step
 
 	}
 }
 
-//#define DEBUG
+#define DEBUG
 
 int main(int argc, char *argv[]) {
 	ifstream fin;
@@ -456,8 +456,8 @@ int main(int argc, char *argv[]) {
 	//ofstream fout;
 	ostream &fout = cout;
 
-	init(argv[1], fin, fout);
-	//init("..\\test\\data\\1.s", fin, fout);
+	//init(argv[1], fin, fout);
+	init("..\\test\\data\\3.s", fin, fout);
 
 
 

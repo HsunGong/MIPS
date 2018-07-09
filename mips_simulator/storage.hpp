@@ -5,12 +5,12 @@
 
 
 
-	//placement new
-void ram::saveInt(int x, int & cur, int ord) {
-		if (ord == 1) new(memory + cur) char(x);
-		else if (ord == 2) new(memory + cur) short(x);
-		else new(memory + cur) int(x);
-		cur += ord;
+//placement new
+void ram::saveInt(int x, int & cur, int size) {
+	if (size == 1) new(memory + cur) int8_t(x);
+	else if (size == 2) new(memory + cur) int16_t(x);
+	else new(memory + cur) int32_t(x);
+	cur += size;
 }
 
 void ram::saveString(string & str, int & cur) {
@@ -19,7 +19,7 @@ void ram::saveString(string & str, int & cur) {
 		char chr = str[i];
 		if (str[i] == '\\') {
 			++i;
-			switch (str[i]){
+			switch (str[i]) {
 			case('a'): chr = 7; break;
 			case('b'): chr = 8; break;
 			case('f'): chr = 12; break;
@@ -39,56 +39,41 @@ void ram::saveString(string & str, int & cur) {
 	}
 }
 
-//cur is the order's next (means space)
-//l and r is the possible parameter size
-void ram::saveStruct(string & line, int & cur, int len, int l, int r, int status, bool isLabel) {
-	instruction tmp(status);
-	int i = l;
-	while(i <= r) {//scan rsrc1, rsrc2/src2(imm or regist)
-		while(cur < len && (skip(line[cur]) || line[cur] == ',')) ++cur;
+void ram::saveStruct(string & line, int & cur, int len, int l, int r, int index, bool isLabel) {
+	instruction tmp(index);
+	int i = l;//if possible, start from 0--1--2
+	while (i <= r) {
+		//for (; cur < len && !((line[cur] >= '0' && line[cur] <= '9') || line[cur] == '-' || line[cur] == '$'); ++cur);
+		while (cur < len && (skip(line[cur]) || line[cur] == ',')) ++cur;
 		if (cur == len) break;
 
-		if (line[cur] == '$') {
-			switch (i) {
-			case(0):
-				tmp.rdest = storeg(line, cur);
-				break;
-			case(1):
-				tmp.rsrc1 = storeg(line, cur);
-				break;
-			case(2):
-				tmp.rsrc2 = storeg(line, cur);
-				break;
-			}
-			
-		}
+		if (line[cur] == '$') tmp.regist[i] = storeg(line, cur);
 		else tmp.imm = mstoi(line, cur);
 
 		++i;
 	}
 	tmp.offset = i - l;
-	if (isLabel) {//the last one may be label or address
+	if (isLabel) {
 		while (skip(line[cur]) || line[cur] == ',') ++cur;
 		if (line[cur] == '-' || (line[cur] >= '0' && line[cur] <= '9')) {
 			tmp.offset = mstoi(line, cur);
 			++cur;
 
-			if (tmp.rdest == EMPTY) tmp.rdest = storeg(line, cur);
-			else tmp.rsrc1 = storeg(line, cur);
+			if (tmp.regist[0] == EMPTY) tmp.regist[0] = storeg(line, cur);
+			else tmp.regist[1] = storeg(line, cur);
 		}
 		else {
 			int next = cur;
-			while(!skip(line[next])) ++next;
+			while (!skip(line[next])) ++next;
 
 			string labelName(&line[cur], &line[next]);// how about ':'????
 			tmp.label = label[labelName];
-			// cout << "Debug " << labelName << ' ' << tmp.label << '\n';
+			// cout << "Debug " << labelName << ' ' << tmp.Label << '\n';
 		}
 	}
-
-	new(memory + mem_low) instruction(tmp);
-	mem_low += ins_size;
-	// cout << "Debug ML = " << _ram.mem_low << '\n';
+	new(memory + heap_top) instruction(tmp);
+	heap_top += ins_size;
+	// cout << "Debug ML = " << MEM_LOW << '\n';
 }
 
 
