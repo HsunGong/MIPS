@@ -164,29 +164,29 @@ int simulate(ifstream &fin, ostream &fout) {
 		case(ADD):
 		case(ADDU):
 		case(ADDIU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] + 
+				((cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]]) ;
 			break;
 
 		case(SUB):
 		case(SUBU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] - _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] -
+				((cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]]);
 			break;
 
 		case(XOR):
 		case(XORU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] ^ _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] -
+				((cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]]);
 			break;
 
 		case(REM):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] % _ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.regist[0]] = _ram.reg[cur_code.regist[1]] %
+				((cur_code.regist[2] == EMPTY) ? cur_code.imm : _ram.reg[cur_code.regist[2]]);
 			break;
 		case(REMU):
-			if (cur_code.regist[2] == EMPTY) _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)cur_code.imm;
-			else _ram.reg[cur_code.regist[0]] = (uint32_t)_ram.reg[cur_code.regist[1]] % (uint32_t)_ram.reg[cur_code.regist[2]];
+			_ram.reg[cur_code.regist[0]] = (uint32_t) _ram.reg[cur_code.regist[1]] +
+				((cur_code.regist[2] == EMPTY) ? (uint32_t)cur_code.imm : (uint32_t)_ram.reg[cur_code.regist[2]]);
 			break;//deal unsigned
 
 

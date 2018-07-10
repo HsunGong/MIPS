@@ -35,12 +35,12 @@ enum INS_TYPE {
 	JR, JALR, //R1
 	NOP, SYSCALL,
 	MUL, MULU, DIV, DIVU, //R1 R2/Imm
-						  //Second_scanf:
-						  B, J, JAL, //Label 
-						  BEQ, BNE, BGE, BLE, BGT, BLT, //R1 R2/Imm Label 
-						  BEQZ, BNEZ, BLEZ, BGEZ, BGTZ, BLTZ, //R1 Label 
-						  LA, LB, LH, LW, //Rd Address (Del) R1 -> Rd
-						  SB, SH, SW //R1 Address (Del) R1 -> Rd
+	//Second_scanf:
+	B, J, JAL, //Label 
+	BEQ, BNE, BGE, BLE, BGT, BLT, //R1 R2/Imm Label 
+	BEQZ, BNEZ, BLEZ, BGEZ, BGTZ, BLTZ, //R1 Label 
+	LA, LB, LH, LW, //Rd Address (Del) R1 -> Rd
+	SB, SH, SW //R1 Address (Del) R1 -> Rd
 };
 map<string, int> Ins_map;
 
