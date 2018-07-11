@@ -1,7 +1,29 @@
-#include "Header.h"
+#include "head.hpp"
 #include "instruction.hpp"
-#include "storage.hpp"
+#include "store.hpp"
 
+extern map<string, int> label;
+extern vector<string> forIns;
+extern map<string, int> Ins_map;
+extern vector<string> forReg;
+extern map<string, int> Reg_map;
+extern ram _ram;
+extern vector<string> Code;
+
+#ifdef DEBUG
+void Debug(instruction & _OperatorCode, int & cnt) {
+	cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << forIns[_OperatorCode.Ins_type] << '\n';
+	for (int i = 0; i < 3; ++i)
+		cout << "Register[" << i << "]: " << int(_OperatorCode.regist[i]) << " or " << forReg[_OperatorCode.regist[i]] << '\n';
+	cout << "Delta: " << _OperatorCode.offset << '\n'
+		<< "Imm :" << _OperatorCode.imm << '\n'
+		<< "Label :" << _OperatorCode.label << "\n";
+	for (int i = 0; i < 34; ++i) cout << i << '\t'; cout << '\n';
+	for (int i = 0; i < 34; ++i) cout << _ram.reg[i] << '\t'; cout << "\n}\n\n";
+}
+#else
+void Debug(instruction & _OperatorCode, int & cnt) {}
+#endif
 
 
 void manageString(string &line, int &cur, int len) {
@@ -455,16 +477,16 @@ int main(int argc, char *argv[]) {
 
 	//ofstream fout;
 	ostream &fout = cout;
-
+    //cout << "haha\n";
 	init(argv[1], fin, fout);
 	//init("..\\test\\data\\1.s", fin, fout);
 
 
 
 	int ex = simulate(fin, fout);
-
+    
 	fin.close();
-	exit(ex);// or return ex
+	// or exit(ex);
 
-	return 0;
+	return ex;
 }

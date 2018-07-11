@@ -18,6 +18,18 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="exception.hpp" />
+    <ClInclude Include="head.hpp" />
+    <ClInclude Include="instruction.hpp" />
+    <ClInclude Include="store.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="head.cpp" />
+    <ClCompile Include="instruction.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="store.cpp" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{1D6F1F99-C5D2-440D-9DDE-0C4A86341C12}</ProjectGuid>
@@ -114,15 +126,6 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClInclude Include="exception.hpp" />
-    <ClInclude Include="Header.h" />
-    <ClInclude Include="instruction.hpp" />
-    <ClInclude Include="storage.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Source.cpp" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

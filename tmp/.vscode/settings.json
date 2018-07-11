@@ -2,6 +2,10 @@
     "files.associations": {
         "vector": "cpp",
         "xstring": "cpp",
-        "xutility": "cpp"
-    }
+        "xutility": "cpp",
+        "sstream": "cpp",
+        "string": "cpp",
+        "xiosbase": "cpp"
+    },
+    "python.linting.pylintEnabled": false
 }

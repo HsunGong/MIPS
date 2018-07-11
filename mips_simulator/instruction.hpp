@@ -1,15 +1,16 @@
 #pragma once
 
-#include "Header.h"
-#include "storage.hpp"
+#include "head.hpp"
+#include "store.hpp"
 
-void instruction::load(int cur) {
-	Ins_type = _ram.memory[cur++];
-	for (int i = 0; i < 3; ++i) {
-		regist[i] = _ram.memory[cur++];
-	}
-	imm = *((int*)(_ram.memory + cur));
-	label = *((int*)(_ram.memory + cur + sizeof(int)));
-	offset = *((int*)(_ram.memory + cur + 2 * sizeof(int)));
 
-}
+class instruction {
+public:
+	int8_t Ins_type;//the order
+
+	int8_t regist[3];//存放寄存器，操作数1，操作数2
+	int imm, label, offset;
+
+	instruction(int8_t type = 255);
+	void load(int cur);
+};

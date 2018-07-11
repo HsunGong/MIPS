@@ -1,8 +1,46 @@
-﻿#pragma once
-
-#include "Header.h"
+#include "head.hpp"
 #include "instruction.hpp"
 
+ram _ram;
+
+vector<string> Code;
+
+extern map<string, int> label;
+extern vector<string> forIns;
+extern map<string, int> Ins_map;
+extern vector<string> forReg;
+extern map<string, int> Reg_map;
+extern ram _ram;
+
+
+const string REG_STR[] = { "$0", "$1", "$2", "$3", "$4", "$5", "$6", "$7", "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15", "$16", "$17", "$18", "$19", "$20", "$21", "$22", "$23", "$24", "$25", "$26", "$27", "$28", "$29", "$30", "$31", "$lo", "$hi", "$pc" };
+const string REG_NUM[] = { "$zero", "$at", "$v0", "$v1", "$a0", "$a1", "$a2", "$a3", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$s0", "$s1", "$s2", "$s3", "$s4", "$s5", "$s6", "$s7", "$t8", "$t9", "$k0", "$k1", "$gp", "$sp", "$fp", "$ra", "$lo", "$hi", "$pc" };
+
+
+
+ram::ram() {
+		reg[SP] = M - 1;
+}
+
+int ram::storeg(string &s, int &cur) {
+		while (s[cur] != '$') ++cur;
+		++cur;
+		if (s[cur] >= '0' && s[cur] <= '9') {
+			int ret = 0;
+			while (s[cur] >= '0' && s[cur] <= '9') {
+				ret = ret * 10 + s[cur] - '0';
+				++cur;
+			}
+			return ret;
+		}
+		else {
+			int next = cur;
+			while(!skip(s[next]) && s[next] != ',' && s[next] != ')') ++next;
+			string RegisterName(&s[cur], &s[next]);
+			cur = next;
+			return Reg_map[RegisterName];
+		}
+}
 
 
 //placement new
@@ -79,6 +117,5 @@ void ram::saveStruct(string & line, int & cur, int len, int l, int r, int index,
 
 
 
-vector<string> Code;
 
 

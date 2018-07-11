@@ -1,15 +1,16 @@
 #pragma once
 
-#include "Header.h"
-#include "storage.hpp"
+#include "head.hpp"
+#include "store.hpp"
 
-void operatorcode::load(int loc) {
-		operatorindex = _ram.memory[loc++];
-		for (int i = 0; i < 3; ++i) {
-			regist[i] = _ram.memory[loc++];
-		}
-		imm = *((int*)(_ram.memory + loc));
-		label = *( (int*)(_ram.memory + loc + sizeof(int)) );
-		delta = *( (int*)(_ram.memory + loc + 2*sizeof(int)) );
-		
-}
+
+class instruction {
+public:
+	int8_t Ins_type;//the order
+
+	int8_t regist[3];//存放寄存器，操作数1，操作数2
+	int imm, label, offset;
+
+	instruction(int8_t type = 255);
+	void load(int cur);
+};
