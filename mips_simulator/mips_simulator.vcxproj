@@ -25,6 +25,7 @@
     <ClInclude Include="store.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="1.cpp" />
     <ClCompile Include="head.cpp" />
     <ClCompile Include="instruction.cpp" />
     <ClCompile Include="main.cpp" />
