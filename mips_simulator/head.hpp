@@ -13,7 +13,8 @@ using namespace std;
 #define M 10000000
 #define ins_size 16
 
-
+//#define NORMAL
+#define PIPELINE
 
 
 enum INS_TYPE {

@@ -25,12 +25,11 @@ void Debug(instruction & _OperatorCode, int & cnt) {
 void Debug(instruction & _OperatorCode, int & cnt) {}
 #endif
 
-
 void manageString(string &line, int &cur, int len) {
-	
+
 	if (line[cur] == '.') {
 		int next = cur, k, cmp, multime = 1;
-		while(!skip(line[next])) ++next;
+		while (!skip(line[next])) ++next;
 		string key(&line[cur + 1], &line[next]), str;
 
 		//get memory sattled
@@ -45,26 +44,23 @@ void manageString(string &line, int &cur, int len) {
 			_ram.heap_top = cmp;
 			break;
 		case('i')://ascii/asciiz
-			while(skip(line[next])) ++next;
+			while (skip(line[next])) ++next;
 			cur = next++;
-			while( line[next] != '\"') ++next;
+			while (line[next] != '\"') ++next;
 
 			str = string(&line[cur + 1], &line[next]);
 			_ram.saveString(str, _ram.heap_top);
 			if (key.length() == 6) _ram.memory[_ram.heap_top++] = '\0';
 			break;
 		case('e')://byte
-			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 1); }
-			while (line[cur++] == ',');
+			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 1); } while (line[cur++] == ',');
 			break;
 		case('f')://half
-			do {_ram.saveInt(mstoi(line, cur), _ram.heap_top, 2);} 
-			while (line[cur++] == ',');
+			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 2); } while (line[cur++] == ',');
 			//for (_ram.saveInt(mstoi(line, cur), _ram.heap_top, 2); line[cur] == ','; _ram.saveInt(mstoi(line, ++cur), _ram.heap_top, 1));
 			break;
 		case('d')://word
-			do {_ram.saveInt(mstoi(line, cur), _ram.heap_top, 4);}
-			while (line[cur++] == ',');
+			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 4); } while (line[cur++] == ',');
 			break;
 		case('c')://space
 			_ram.heap_top += mstoi(line, cur);
@@ -75,14 +71,14 @@ void manageString(string &line, int &cur, int len) {
 	}
 	else {//instructions
 		int next = cur;
-		while(!skip(line[next])) ++next;
+		while (!skip(line[next])) ++next;
 		string ins(&line[cur], &line[next]);
 		cur = next;
 		int _index = Ins_map[ins];
 
 		switch (_index) {
-		//First_scanf:
-		case ADD: case ADDU: case ADDIU: case SUB: case SUBU: 
+			//First_scanf:
+		case ADD: case ADDU: case ADDIU: case SUB: case SUBU:
 		case XOR: case XORU: case REM: case REMU:
 		case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE: // Rd R1 R2/Imm
 			_ram.saveStruct(line, cur, len, 0, 2, _index, 0); break;
@@ -96,7 +92,7 @@ void manageString(string &line, int &cur, int len) {
 			_ram.saveStruct(line, cur, len, 0, -1, _index, 0); break;
 		case MUL: case MULU: case DIV: case DIVU: //R1 R2/Imm
 			_ram.saveStruct(line, cur, len, 0, 2, _index, 0); break;
-		//Second_scanf:
+			//Second_scanf:
 		case B: case J: case JAL: //Label 
 			_ram.saveStruct(line, cur, len, 0, -1, _index, 1); break;
 		case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT: //R1 R2/Imm Label 
@@ -108,9 +104,8 @@ void manageString(string &line, int &cur, int len) {
 		case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
 			_ram.saveStruct(line, cur, len, 1, 1, _index, 1); break;
 		}
-		}
+	}
 }
-
 
 void code_scanf(int second_scanf = 0) {
 	string line;
@@ -125,7 +120,7 @@ void code_scanf(int second_scanf = 0) {
 			len = annotation + 1;
 		}
 
-		while(cur < len &&  skip(line[cur])) ++cur; // "  .data" -> cur: "  ^data"
+		while (cur < len &&  skip(line[cur])) ++cur; // "  .data" -> cur: "  ^data"
 		if (cur == len) continue;//wrong code
 
 		int pos = line.find(':');
@@ -135,7 +130,7 @@ void code_scanf(int second_scanf = 0) {
 			label[label_name] = _ram.heap_top;
 
 			++pos;
-			while(pos < len && skip(line[pos])) ++pos;
+			while (pos < len && skip(line[pos])) ++pos;
 			line.erase(0, pos);
 			cur = 0;
 			len -= pos;
@@ -170,7 +165,14 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 	//_ram.reg[SP] = M - 1;
 }
 
-int simulate(ifstream &fin, ostream &fout) {
+
+#ifdef PIPELINE
+
+#endif
+
+#ifdef NORMAL
+
+int simulate(ostream &fout) {
 	int cur_loc = label["main"];
 	instruction cur_code;
 	int cnt = 0;
@@ -469,7 +471,7 @@ int simulate(ifstream &fin, ostream &fout) {
 
 	}
 }
-
+#endif
 //#define DEBUG
 
 int main(int argc, char *argv[]) {
@@ -483,7 +485,7 @@ int main(int argc, char *argv[]) {
 
 
 
-	int ex = simulate(fin, fout);
+	int ex = simulate(fout);
     
 	fin.close();
 	// or exit(ex);

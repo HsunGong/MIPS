@@ -24,3 +24,63 @@ instruction::instruction(int8_t type) : Ins_type(type) {
 	for (int i = 0; i < 3; ++i) regist[i] = EMPTY;
 	offset = 0;
 }
+
+#ifdef PIPELINE
+
+instruction& instruction::operator=(instruction &rhs) {
+	if (this == &rhs) return *this;
+	Ins_type = rhs.Ins_type;
+	imm = rhs.imm;
+	label = rhs.label;
+	offset = rhs.offset;
+	for (int i = 0; i < 3; ++i) regist[i] = rhs.regist[i];
+
+	return *this;
+}
+void instruction::clear() {
+	Ins_type = -1;
+	for (int i = 0; i < 3; ++i) regist[i] = EMPTY;
+	imm = label = offset = 0;
+}
+
+void IF::push(int cur) {
+	instruction *p = this;
+	p->load();
+	p->clear();
+}
+
+void ID::push(IF &rhs) {
+	instruction *p = this;
+	*p = rhs;
+	p = &rhs;
+	p->clear();
+}
+
+void EX::push(ID &rhs) {
+	instruction *p = this;
+	*p = rhs;
+	p = &rhs;
+	p->clear();
+	for (int i = 0; i < 3; ++i) reg[i] = rhs.reg[i];
+}
+
+void MA::push(EX &rhs) {
+	instruction *p = this;
+	*p = rhs;
+	p = &rhs;
+	p->clear();
+}
+
+void WB::push(MA &rhs) {
+	instruction *p = this;
+	*p = rhs;
+	p = &rhs;
+	p->clear();
+}
+
+#else
+
+instruction &instruction::operator=(instruction &rhs) { return *this; }
+void instruction::clear(){}
+
+#endif
