@@ -166,22 +166,6 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 }
 
 
-//First_scanf:
-	case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU: 
-	case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
-	case NEG: case NEGU: case LI: case MOVE:  //Rd R1/Imm
-	case MFHI: case MFLO:  //Rd
-	case JR: case JALR:  //R1
-	case NOP: case SYSCALL:
-	case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
-											   //Second_scanf:
-	case B: case J: case JAL:  //Label 
-	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
-	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
-	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
-	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
-
-
 #ifdef PIPELINE
 
 IF I_F;
@@ -513,8 +497,71 @@ void Memory_Access(ostream &fout){
 }
 
 void Write_Back(ostream &fout){
-
-
+	if (W_B.Ins_type == -1) return;
+	switch (W_B.Ins_type) {
+		//First_scanf:
+	case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU:
+	case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
+	case NEG: case NEGU: case LI: case MOVE:  //Rd R1/Imm
+	case MFHI: case MFLO:  //Rd
+	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
+		_ram.reg[W_B.regist[0]] = W_B.imm;
+		_ram.vis[W_B.regist[0]] = 0;
+		break;
+	case JALR:  //R1
+		_ram.reg[31] = PC;
+		_ram.vis[31] = 0;
+	case JR: 
+		PC = W_B.label;
+		I_F.jump_block = 0;
+		break;
+	case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
+		if (W_B.offset == 2) {
+			_ram.reg[LO] = W_B.imm;
+			_ram.reg[HI] = W_B.label;
+			_ram.vis[LO] = _ram.vis[HI] = 0;
+		}
+		else {
+			_ram.reg[W_B.regist[0]] = W_B.imm;
+			_ram.vis[W_B.regist[0]] = 0;
+		}
+		break;
+	case JAL:
+		_ram.reg[31] = PC;
+		_ram.vis[31] = 0;
+	case B: case J:  //Label 
+		PC = W_B.label;
+		I_F.jump_block = 0;
+		break;
+	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+		if (W_B.imm) PC = W_B.label;
+		I_F.jump_block = 0;
+		break;
+	case SYSCALL:
+		switch (W_B.offset) {
+		case(5):
+			_ram.reg[V0] = W_B.imm;
+			_ram.vis[V0] = 0;
+			break;
+		case(9):
+			_ram.reg[V0] = W_B.label;
+			_ram.vis[V0] = 0;
+		case(10):
+			SIMULATOR = 0;
+			return;
+		case(17):
+			SIMULATOR = 0;
+			return_value = W_B.imm;
+			return;
+		default: break;
+		}
+		break;
+	default: break;
+	//	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
+	//	case NOP: 
+	}
+	W_B.clear();
 }
 
 int simulate(ostream &fout) {
@@ -536,9 +583,7 @@ int simulate(ostream &fout) {
 	return return_value;
 }
 
-#endif
-
-#ifdef NORMAL
+#else
 
 int simulate(ostream &fout) {
 	int cur_loc = label["main"];
