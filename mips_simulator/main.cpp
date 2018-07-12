@@ -366,7 +366,9 @@ void Instruction_Decode(ostream &fout){
 		//case NOP: 
 		//case B: case J: case JAL:  //Label 
 		//case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
-		//case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+		case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+			I_D.reg[2] = 0;
+			break;
 		//case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
 		default: break;
 		}
@@ -435,18 +437,85 @@ void Execution(ostream &fout){
 			EX_.imm = (uint32_t)EX_.reg[0] / (uint32_t)EX_.reg[1];
 		}
 		break;
-	case B: case J: case JAL:  //Label 
-	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
-	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
-	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
-	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
-	case NOP: case SYSCALL: 
+	case BEQ: case BEQZ: EX_.imm = (EX_.reg[1] == EX_.reg[2]); break;
+	case BNE: case BNEZ: EX_.imm = (EX_.reg[1] != EX_.reg[2]); break;
+	case BGE: case BGEZ: EX_.imm = (EX_.reg[1] >= EX_.reg[2]); break;
+	case BLE: case BLEZ: EX_.imm = (EX_.reg[1] <= EX_.reg[2]); break;
+	case BGT: case BGTZ: EX_.imm = (EX_.reg[1] > EX_.reg[2]); break;
+	case BLT: case BLTZ: EX_.imm = (EX_.reg[1] < EX_.reg[2]); break;
+	case LA: case LB: case LH: case LW: 
+		if (EX_.regist[1] != EMPTY) EX_.label = EX_.reg[1] + EX_.offset;
+		break;
+	case SB: case SH: case SW:
+		if (EX_.regist[0] != EMPTY) EX_.label = EX_.reg[0] + EX_.offset;
+		EX_.imm = EX_.reg[1];
+		break;
+	//case B: case J: case JAL:  //Label 
+	//case NOP: case SYSCALL: 
+	default :
+		break;
 	}
+	M_A.push(EX_);
 }
 
-void Memory_Access(ostream &fout){}
+void Memory_Access(ostream &fout){
+	if (M_A.Ins_type == -1) return;
+	int loc;
+	string str;
+	switch (M_A.Ins_type) {
+	case LA: M_A.imm = M_A.label; break;
+	case LB: M_A.imm = *((int8_t*)(_ram.memory + M_A.label)); break;
+	case LH: M_A.imm = *((int16_t*)(_ram.memory + M_A.label)); break;
+	case LW: M_A.imm = *((int32_t*)(_ram.memory + M_A.label)); break;
+	case SB: loc = M_A.label; _ram.saveInt(M_A.imm, loc, 1); break;
+	case SH: loc = M_A.label; _ram.saveInt(M_A.imm, loc, 2); break;
+	case SW: loc = M_A.label; _ram.saveInt(M_A.imm, loc, 4); break;
+	case SYSCALL:
+		switch (M_A.offset) {
+		case(1):
+			fout << M_A.imm;
+		case(4):
+			loc = M_A.label;
+			while (_ram.memory[loc] != '\0') {
+				fout << _ram.memory[loc];
+				++loc;
+			}
+			break;
+		case(5):
+			cin >> M_A.imm;
+		case(8):
+			getline(cin, str);
+			if (str.length() > M_A.imm - 1) str = string(&str[0], &str[M_A.imm - 1]);
+			loc = M_A.label;
+			_ram.saveString(str, loc);
+			break;
+		case(9):
+			M_A.label = _ram.heap_top;
+			_ram.heap_top += M_A.imm;
+			break;
+		default: break;
+		}
+	default: break;
+	//case NOP:
+	//case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU:
+	//case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
+	//case NEG: case NEGU: case LI: case MOVE:  //Rd R1/Imm
+	//case MFHI: case MFLO:  //Rd
+	//case JR: case JALR:  //R1
 
-void Write_Back(ostream &fout){}
+	//case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
+	//										   //Second_scanf:
+	//case B: case J: case JAL:  //Label 
+	//case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+	//case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+	}
+	W_B.push(M_A);
+}
+
+void Write_Back(ostream &fout){
+
+
+}
 
 int simulate(ostream &fout) {
 	PC = label["main"];
