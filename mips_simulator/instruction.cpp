@@ -45,7 +45,7 @@ void instruction::clear() {
 
 void IF::push(int cur) {
 	instruction *p = this;
-	p->load();
+	p->load(cur);
 	p->clear();
 }
 

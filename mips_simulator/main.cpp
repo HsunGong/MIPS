@@ -166,7 +166,306 @@ void init(const char * argv, ifstream &fin, ostream &fout) {
 }
 
 
+//First_scanf:
+	case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU: 
+	case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
+	case NEG: case NEGU: case LI: case MOVE:  //Rd R1/Imm
+	case MFHI: case MFLO:  //Rd
+	case JR: case JALR:  //R1
+	case NOP: case SYSCALL:
+	case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
+											   //Second_scanf:
+	case B: case J: case JAL:  //Label 
+	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
+	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
+
+
 #ifdef PIPELINE
+
+IF I_F;
+ID I_D;
+EX EX_;
+MA M_A;
+WB W_B;
+
+bool SIMULATOR = true;
+int PC, return_value = 0;
+
+
+void Instruction_Fetch(ostream &fout){
+	if (!I_F.block && !I_F.jump_block) {
+		I_F.push(PC);
+		PC += ins_size;
+
+		switch (I_F.Ins_type) {
+		case JR: case JALR:
+		case B: case J: case JAL:
+		case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:
+		case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:
+			I_F.jump_block = 1;
+			break;
+		default :
+			break;
+		}
+
+		I_D.push(I_F);
+	}
+}
+
+void Stop_Instruction_Decode(){
+	I_D.block = 1;
+	I_F.block = 1;
+}
+void Instruction_Decode(ostream &fout){
+	if (I_D.Ins_type == -1) return;
+
+	I_D.block = I_F.jump_block = 0;
+	for (int i = 0; i < 3; ++i) I_D.tovis[i] = 0;
+
+	switch (I_D.Ins_type) {
+	case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU:
+	case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
+	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+		I_D.tovis[1] = I_D.tovis[2] = 1;
+		break;
+	case NEG: case NEGU: case MOVE: //case LI:  //Rd R1/Imm
+	case JR: case JALR:  //R1
+	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
+		I_D.tovis[1] = 1;
+		break;
+	case MFHI: 
+		if (_ram.vis[HI]) {
+			Stop_Instruction_Decode();
+			return;
+		}
+		else {
+			I_D.imm = _ram.reg[HI];
+		}
+		break;
+	case MFLO:  //Rd
+		if (_ram.vis[LO]) {
+			Stop_Instruction_Decode();
+			return;
+		}
+		else {
+			I_D.imm = _ram.reg[LO];
+		}
+		break;
+	case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
+		if (I_D.offset == 2) I_D.tovis[0] = I_D.tovis[1] = 1;
+		else I_D.tovis[1] = I_D.tovis[2] = 1;
+		break;
+	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
+		I_D.tovis[0] = I_D.tovis[1] = 1;
+		break;
+	//case B: case J: case JAL:  //Label 
+	//case NOP: 
+	case SYSCALL:
+		if (_ram.vis[V0]) {
+			Stop_Instruction_Decode();
+			return;
+		}
+		else {
+			I_D.offset = _ram.reg[V0];
+			switch (I_D.offset) {
+			case(1):
+				if (_ram.vis[A0]) {
+					Stop_Instruction_Decode();
+					return;
+				}
+				else {
+					I_D.imm = _ram.reg[A0];
+				}
+				break;
+			case(4):
+				if (_ram.vis[A0]) {
+					Stop_Instruction_Decode();
+					return;
+				}
+				else {
+					I_D.label = _ram.reg[A0];
+				}
+				break;
+			case(8):
+				if (_ram.vis[A0] || _ram.vis[A1]) {
+					Stop_Instruction_Decode();
+					return;
+				}
+				else {
+					I_D.imm = _ram.reg[A1];
+					I_D.label = _ram.reg[A0];
+				}
+				break;
+			case(9):
+				if (_ram.vis[A0]) {
+					Stop_Instruction_Decode();
+					return;
+				}
+				else {
+					I_D.imm = _ram.reg[A0];
+				}
+				break;
+			case(17):
+				if (_ram.vis[A0]) {
+					Stop_Instruction_Decode();
+					return;
+				}
+				else {
+					I_D.imm = _ram.reg[A0];
+				}
+				break;
+			default://case 10, 5
+				break;
+			}
+		}
+	default:
+		break;
+	}
+
+	for (int i = 0; i < 3; ++i) {
+		if (I_D.tovis[i] && I_D.regist[i] != EMPTY && _ram.vis[I_D.regist[i]]) {
+			Stop_Instruction_Decode();
+			return;
+		}
+	}
+
+	if (!I_D.block) {
+		for (int i = 0; i < 3; ++i) {
+			if (I_D.tovis[i]) {
+				if (I_D.regist[i] == EMPTY) I_D.reg[i] = I_D.imm;
+				else I_D.reg[i] = _ram.reg[I_D.regist[i]];
+			}
+		}
+
+		switch (I_D.Ins_type) {
+		case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU:
+		case SEQ: case SGE: case SGT: case SLE: case SLT: case SNE:  // Rd R1 R2/Imm
+		case NEG: case NEGU: case LI: case MOVE:  //Rd R1/Imm
+		case MFHI: case MFLO:  //Rd
+		case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
+			_ram.vis[I_D.regist[0]] = 1;
+			break;
+		case JR: case JALR:  //R1
+			_ram.vis[31] = 1;
+			break;	
+		case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
+			if (I_D.offset == 2) _ram.vis[LO] = _ram.vis[HI] = 1;
+			else _ram.vis[I_D.regist[0]] = 1;
+			break;
+		case SYSCALL:
+			switch (I_D.offset) {
+			case(5):
+			case(9):
+				_ram.vis[V0] = 1;
+				break;
+			default: break;
+			}
+		//case NOP: 
+		//case B: case J: case JAL:  //Label 
+		//case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+		//case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+		//case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
+		default: break;
+		}
+	}
+	EX_.push(I_D);
+}
+
+void Execution(ostream &fout){
+	if (EX_.Ins_type == -1) return;
+	switch (EX_.Ins_type) {
+	case ADD: case ADDU: case ADDIU: EX_.imm = EX_.reg[1] + EX_.reg[2]; break;
+	case SUB: case SUBU: EX_.imm = EX_.reg[1] - EX_.reg[2]; break;
+	case XOR: case XORU: EX_.imm = EX_.reg[1] ^ EX_.reg[2]; break;
+	case REM: EX_.imm = EX_.reg[1] % EX_.reg[2]; break;
+	case REMU: EX_.imm = (uint32_t) EX_.reg[1] % (uint32_t) EX_.reg[2]; break;
+	case SEQ: EX_.imm = EX_.reg[1] == EX_.reg[2]; break;
+	case SGE: EX_.imm = EX_.reg[1] >= EX_.reg[2]; break;
+	case SGT: EX_.imm = EX_.reg[1] > EX_.reg[2]; break;
+	case SLE: EX_.imm = EX_.reg[1] <= EX_.reg[2]; break;
+	case SLT: EX_.imm = EX_.reg[1] < EX_.reg[2]; break;
+	case SNE: EX_.imm = EX_.reg[1] != EX_.reg[2]; break;
+	case NEG: case NEGU: EX_.imm = -EX_.reg[1]; break;
+	case LI: case MOVE:  EX_.imm = EX_.reg[1]; break;
+	case MFHI: EX_.imm = _ram.reg[HI]; break;
+	case MFLO: EX_.imm = EX_.reg[LO]; break;
+	case JR: case JALR:  EX_.imm = EX_.reg[1]; break;
+	case MUL: 
+		if (EX_.offset == 2) {
+			int64_t tmp = (int64_t)EX_.reg[0] * (int64_t)EX_.reg[1];
+			EX_.imm = tmp;
+			tmp >>= 32;
+			EX_.label = tmp;
+		}
+		else {
+			int64_t tmp = (int64_t)EX_.reg[1] * (int64_t)EX_.reg[2];
+			EX_.imm = tmp;
+		}
+		break;
+	case MULU:
+		if (EX_.offset == 2) {
+			uint64_t tmp = (uint64_t)EX_.reg[0] * (uint64_t)EX_.reg[1];
+			EX_.imm = tmp;
+			tmp >>= 32;
+			EX_.label = tmp;
+		}
+		else {
+			uint64_t tmp = (uint64_t)EX_.reg[1] * (uint64_t)EX_.reg[2];
+			EX_.imm = tmp;
+		}
+		break;
+	case DIV:
+		if (EX_.offset == 2) {
+			EX_.imm = EX_.reg[0] / EX_.reg[1];
+			EX_.label = EX_.reg[0] % EX_.reg[1];
+		}
+		else {
+			EX_.imm = EX_.reg[0] / EX_.reg[1];
+		}
+		break;
+	case DIVU:
+		if (EX_.offset == 2) {
+			EX_.imm = (uint32_t)EX_.reg[0] / (uint32_t)EX_.reg[1];
+			EX_.label = (uint32_t)EX_.reg[0] % (uint32_t)EX_.reg[1];
+		}
+		else {
+			EX_.imm = (uint32_t)EX_.reg[0] / (uint32_t)EX_.reg[1];
+		}
+		break;
+	case B: case J: case JAL:  //Label 
+	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
+	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
+	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
+	case SB: case SH: case SW: //R1 Address (Del) R1 -> Rd
+	case NOP: case SYSCALL: 
+	}
+}
+
+void Memory_Access(ostream &fout){}
+
+void Write_Back(ostream &fout){}
+
+int simulate(ostream &fout) {
+	PC = label["main"];
+	int cnt = 0;
+	while (SIMULATOR) {
+		Instruction_Fetch(fout);
+		Debug(I_F, cnt);
+		Instruction_Decode(fout);
+		Debug(I_D, cnt);
+		Execution(fout);
+		Debug(EX_, cnt);
+		Memory_Access(fout); 
+		Debug(M_A, cnt);
+		Write_Back(fout);
+		Debug(W_B, cnt);
+	}
+
+	return return_value;
+}
 
 #endif
 
