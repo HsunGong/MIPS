@@ -12,7 +12,8 @@ extern vector<string> Code;
 
 #ifdef DEBUG
 void Debug(instruction & _OperatorCode, int & cnt) {
-	cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << forIns[_OperatorCode.Ins_type] << '\n';
+	if(_OperatorCode.Ins_type != -1)cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << forIns[_OperatorCode.Ins_type] << '\n';
+	else cout << "Debug: \n{\n" << ++cnt << "\nOperator: " << "-1" << '\n';
 	for (int i = 0; i < 3; ++i)
 		cout << "Register[" << i << "]: " << int(_OperatorCode.regist[i]) << " or " << forReg[_OperatorCode.regist[i]] << '\n';
 	cout << "Delta: " << _OperatorCode.offset << '\n'
@@ -50,7 +51,9 @@ void manageString(string &line, int &cur, int len) {
 
 			str = string(&line[cur + 1], &line[next]);
 			_ram.saveString(str, _ram.heap_top);
+
 			if (key.length() == 6) _ram.memory[_ram.heap_top++] = '\0';
+
 			break;
 		case('e')://byte
 			do { _ram.saveInt(mstoi(line, cur), _ram.heap_top, 1); } while (line[cur++] == ',');
@@ -205,7 +208,7 @@ void Stop_Instruction_Decode(){
 void Instruction_Decode(ostream &fout){
 	if (I_D.Ins_type == -1) return;
 
-	I_D.block = I_F.jump_block = 0;
+	I_D.block = I_F.block = 0;
 	for (int i = 0; i < 3; ++i) I_D.tovis[i] = 0;
 
 	switch (I_D.Ins_type) {
@@ -214,7 +217,7 @@ void Instruction_Decode(ostream &fout){
 	case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
 		I_D.tovis[1] = I_D.tovis[2] = 1;
 		break;
-	case NEG: case NEGU: case MOVE: //case LI:  //Rd R1/Imm
+	case NEG: case NEGU: case MOVE: case LI:  //Rd R1/Imm
 	case JR: case JALR:  //R1
 	case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
 	case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
@@ -332,7 +335,7 @@ void Instruction_Decode(ostream &fout){
 		case LA: case LB: case LH: case LW:  //Rd Address (Del) R1 -> Rd
 			_ram.vis[I_D.regist[0]] = 1;
 			break;
-		case JR: case JALR:  //R1
+		case JAL: case JALR:  //R1
 			_ram.vis[31] = 1;
 			break;	
 		case MUL: case MULU: case DIV: case DIVU:  //R1 R2/Imm
@@ -347,8 +350,9 @@ void Instruction_Decode(ostream &fout){
 				break;
 			default: break;
 			}
+			break;
 		//case NOP: 
-		//case B: case J: case JAL:  //Label 
+		//case B: case J: case JR:  //Label 
 		//case BEQ: case BNE: case BGE: case BLE: case BGT: case BLT:  //R1 R2/Imm Label 
 		case BEQZ: case BNEZ: case BLEZ: case BGEZ: case BGTZ: case BLTZ:  //R1 Label 
 			I_D.reg[2] = 0;
@@ -362,6 +366,7 @@ void Instruction_Decode(ostream &fout){
 
 void Execution(ostream &fout){
 	if (EX_.Ins_type == -1) return;
+
 	switch (EX_.Ins_type) {
 	case ADD: case ADDU: case ADDIU: EX_.imm = EX_.reg[1] + EX_.reg[2]; break;
 	case SUB: case SUBU: EX_.imm = EX_.reg[1] - EX_.reg[2]; break;
@@ -377,8 +382,8 @@ void Execution(ostream &fout){
 	case NEG: case NEGU: EX_.imm = -EX_.reg[1]; break;
 	case LI: case MOVE:  EX_.imm = EX_.reg[1]; break;
 	case MFHI: EX_.imm = _ram.reg[HI]; break;
-	case MFLO: EX_.imm = EX_.reg[LO]; break;
-	case JR: case JALR:  EX_.imm = EX_.reg[1]; break;
+	case MFLO: EX_.imm = _ram.reg[LO]; break;
+	case JR: case JALR:  EX_.label = EX_.reg[1]; break;
 	case MUL: 
 		if (EX_.offset == 2) {
 			int64_t tmp = (int64_t)EX_.reg[0] * (int64_t)EX_.reg[1];
@@ -409,7 +414,7 @@ void Execution(ostream &fout){
 			EX_.label = EX_.reg[0] % EX_.reg[1];
 		}
 		else {
-			EX_.imm = EX_.reg[0] / EX_.reg[1];
+			EX_.imm = EX_.reg[1] / EX_.reg[2];
 		}
 		break;
 	case DIVU:
@@ -418,7 +423,7 @@ void Execution(ostream &fout){
 			EX_.label = (uint32_t)EX_.reg[0] % (uint32_t)EX_.reg[1];
 		}
 		else {
-			EX_.imm = (uint32_t)EX_.reg[0] / (uint32_t)EX_.reg[1];
+			EX_.imm = (uint32_t)EX_.reg[1] / (uint32_t)EX_.reg[2];
 		}
 		break;
 	case BEQ: case BEQZ: EX_.imm = (EX_.reg[1] == EX_.reg[2]); break;
@@ -444,6 +449,7 @@ void Execution(ostream &fout){
 
 void Memory_Access(ostream &fout){
 	if (M_A.Ins_type == -1) return;
+
 	int loc;
 	string str;
 	switch (M_A.Ins_type) {
@@ -498,6 +504,7 @@ void Memory_Access(ostream &fout){
 
 void Write_Back(ostream &fout){
 	if (W_B.Ins_type == -1) return;
+
 	switch (W_B.Ins_type) {
 		//First_scanf:
 	case ADD: case ADDU: case ADDIU: case SUB: case SUBU: case XOR: case XORU: case REM: case REMU:
@@ -547,6 +554,7 @@ void Write_Back(ostream &fout){
 		case(9):
 			_ram.reg[V0] = W_B.label;
 			_ram.vis[V0] = 0;
+			break;
 		case(10):
 			SIMULATOR = 0;
 			return;
@@ -566,23 +574,32 @@ void Write_Back(ostream &fout){
 
 int simulate(ostream &fout) {
 	PC = label["main"];
-	int cnt = 0;
+	int cnt = 0, wb, ma, ex, id;
+	id = -1;
+	ex = -2;
+	ma = -3;
+	wb = -4;
+
 	while (SIMULATOR) {
-		Instruction_Fetch(fout);
-		Debug(I_F, cnt);
-		Instruction_Decode(fout);
-		Debug(I_D, cnt);
-		Execution(fout);
-		Debug(EX_, cnt);
-		Memory_Access(fout); 
-		Debug(M_A, cnt);
 		Write_Back(fout);
-		Debug(W_B, cnt);
+		//if(!I_F.block && !I_F.jump_block) cout << "WB\n", Debug(W_B, wb);
+		Memory_Access(fout); 
+		//cout << "MA\n"; Debug(M_A, ma);
+		Execution(fout);
+		//cout << "EX\n"; Debug(EX_, ex);
+		Instruction_Decode(fout);
+		//cout << "ID\n"; Debug(I_D, id);
+
+		//cout << "########################################\n";
+		Instruction_Fetch(fout);
+		//cout << "IF\n"; Debug(I_F, cnt);
 	}
 
 	return return_value;
 }
 
+
+#pragma region onrmal
 #else
 
 int simulate(ostream &fout) {
@@ -885,6 +902,7 @@ int simulate(ostream &fout) {
 	}
 }
 #endif
+#pragma endregion
 //#define DEBUG
 
 int main(int argc, char *argv[]) {
@@ -893,6 +911,7 @@ int main(int argc, char *argv[]) {
 	//ofstream fout;
 	ostream &fout = cout;
     //cout << "haha\n";
+	
 	init(argv[1], fin, fout);
 	//init("..\\test\\data\\1.s", fin, fout);
 

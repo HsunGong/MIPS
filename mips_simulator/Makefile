@@ -8,9 +8,9 @@ CFLAGS = -Wall -std=c++17 -O
 ######################    Modify    ######################
 NAME = code
 
-HPP = Header.hpp storage.hpp instruction.hpp #.hpp
-CPP = main.cpp Header.cpp storage.cpp instruction.cpp # *.cpp
-OBJ = main.o Header.o storage.o instruction.o
+HPP = head.hpp store.hpp instruction.hpp exception.hpp #.hpp
+CPP = main.cpp head.cpp store.cpp instruction.cpp # *.cpp
+OBJ = main.o head.o store.o instruction.o
 
 ##########################################################
 
@@ -40,3 +40,8 @@ clean:
 
 
 #link library...
+
+
+
+
+

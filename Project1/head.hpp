@@ -13,8 +13,9 @@ using namespace std;
 #define M 10000000
 #define ins_size 16
 
-
-
+//#define NORMAL
+#define PIPELINE
+#define DEBUG
 
 enum INS_TYPE {
 	//First_scanf:

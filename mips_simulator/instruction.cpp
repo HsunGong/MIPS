@@ -46,7 +46,6 @@ void instruction::clear() {
 void IF::push(int cur) {
 	instruction *p = this;
 	p->load(cur);
-	p->clear();
 }
 
 void ID::push(IF &rhs) {
@@ -82,5 +81,18 @@ void WB::push(MA &rhs) {
 
 instruction &instruction::operator=(instruction &rhs) { return *this; }
 void instruction::clear(){}
+
+#endif
+
+
+#ifdef PREDICT
+
+class predictor {
+	//one bit
+	bool flag = 0;
+	void tranverse() {
+		flag = !flag;
+	}
+};
 
 #endif

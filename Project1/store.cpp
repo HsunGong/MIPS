@@ -75,6 +75,7 @@ void ram::saveString(string & str, int & cur) {
 		}
 		memory[cur++] = chr;
 	}
+	//_ram.memory[cur++] = '\0';
 }
 
 void ram::saveStruct(string & line, int & cur, int len, int l, int r, int index, bool isLabel) {

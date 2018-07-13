@@ -15,7 +15,7 @@ using namespace std;
 
 //#define NORMAL
 #define PIPELINE
-
+#define DEBUG
 
 enum INS_TYPE {
 	//First_scanf:

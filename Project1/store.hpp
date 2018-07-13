@@ -9,6 +9,7 @@ class ram {
 public:
 	int8_t memory[M];
 	int reg[34] = { 0 };
+	int vis[34] = { 0 };
 	int heap_top = 0;
 
 	ram();
